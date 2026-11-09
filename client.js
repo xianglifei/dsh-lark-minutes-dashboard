@@ -5,9 +5,9 @@ window.__ModuleLoader__.load({
     const h = React.createElement
     const { useState, useEffect, useMemo, useRef, useCallback } = React
 
+    let pluginCtx = null
+
     const API = '/lark-minutes'
-    const SIZE_OPTIONS = [10, 20, 50]
-    const FETCH_SIZE = 500
     const FILTERS = [
       { id: 'all', label: '最新' },
       { id: 'pending', label: '待整理' },
@@ -99,10 +99,6 @@ window.__ModuleLoader__.load({
 .lm-brand-title {
   font-size: 15px; line-height: 22px; font-weight: 600;
   letter-spacing: -.012em; white-space: nowrap;
-}
-.lm-brand-sub {
-  font-size: 11px; line-height: 18px; color: var(--lm-caption);
-  white-space: nowrap; font-variant-numeric: tabular-nums;
 }
 .lm-head-spacer { flex: 1; min-width: 4px; }
 
@@ -242,39 +238,18 @@ window.__ModuleLoader__.load({
   font-size: 11px; line-height: 18px; color: var(--lm-caption);
   white-space: nowrap; font-variant-numeric: tabular-nums;
 }
-.lm-tool-sep { width: 1px; height: 12px; background: var(--lm-border); flex: none; }
-.lm-auth { display: inline-flex; align-items: center; gap: 5px; min-width: 0; }
-.lm-auth-dot {
-  width: 6px; height: 6px; border-radius: 50%; flex: none;
-  background: var(--lm-caption);
-  box-shadow: 0 0 0 2.5px color-mix(in srgb, var(--lm-ok) 14%, transparent);
+/* 同步按钮：一个控件同时承担「动作 + 上次同步结果」 */
+.lm-sync { gap: 6px; padding: 0 8px; }
+.lm-sync-state { max-width: 168px; overflow: hidden; text-overflow: ellipsis; }
+.lm-sync-state[data-tone="err"] { color: var(--lm-err-ink); }
+.lm-sync-state[data-tone="warn"] { color: var(--lm-warn-ink); }
+.lm-sync-failed, .lm-sync-failed .lm-btn-label { color: var(--lm-err-ink); }
+/* 登录正常时不占位；只有登录失效才提示一句 */
+.lm-auth-warn {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 11px; line-height: 18px; color: var(--lm-err-ink);
+  white-space: nowrap;
 }
-.lm-auth[data-tone="ok"] .lm-auth-dot {
-  background: var(--lm-ok);
-  box-shadow: 0 0 0 2.5px color-mix(in srgb, var(--lm-ok) 14%, transparent);
-}
-.lm-auth[data-tone="warn"] .lm-auth-dot {
-  background: var(--lm-warn);
-  box-shadow: 0 0 0 2.5px color-mix(in srgb, var(--lm-warn) 16%, transparent);
-}
-.lm-auth[data-tone="err"] .lm-auth-dot {
-  background: var(--lm-err);
-  box-shadow: 0 0 0 2.5px color-mix(in srgb, var(--lm-err) 14%, transparent);
-}
-.lm-auth-text { color: var(--lm-text-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.lm-auth[data-tone="err"] .lm-auth-text { color: var(--lm-err-ink); }
-.lm-auth-sub { color: var(--lm-caption); font-size: 10.5px; white-space: nowrap; }
-.lm-size { position: relative; display: inline-flex; align-items: center; flex: none; }
-.lm-size select {
-  appearance: none; -webkit-appearance: none;
-  height: 26px; padding: 0 22px 0 8px;
-  border: .5px solid var(--lm-border); border-radius: 7px;
-  background: transparent; color: var(--lm-text-3);
-  font: inherit; font-size: 11px; line-height: 1;
-  cursor: pointer; outline: 0;
-}
-.lm-size select:hover { color: var(--lm-text-2); border-color: color-mix(in srgb, var(--lm-text) 22%, transparent); }
-.lm-size-caret { position: absolute; right: 6px; pointer-events: none; color: var(--lm-caption); display: inline-flex; }
 
 /* ---------------------------------------------------------------- banner */
 .lm-banner {
@@ -334,9 +309,10 @@ window.__ModuleLoader__.load({
 
 .lm-row {
   position: relative;
-  display: block; width: 100%;
-  margin: 0 0 2px;
-  padding: 9px 10px 9px 12px;
+  display: grid; grid-template-columns: auto 1fr; column-gap: 6px; row-gap: 4px;
+  align-items: center; width: 100%;
+  margin: 0 0 3px;
+  padding: 12px 10px 12px 12px;
   border: .5px solid transparent; border-radius: 9px;
   background: transparent; text-align: left; cursor: pointer;
   transition: background .12s ease, box-shadow .12s ease, border-color .12s ease;
@@ -358,38 +334,31 @@ window.__ModuleLoader__.load({
   border-radius: 0 2px 2px 0;
   background: var(--lm-brand);
 }
-.lm-row-main { display: flex; align-items: center; gap: 7px; min-width: 0; }
-.lm-dot { width: 6px; height: 6px; border-radius: 50%; flex: none; }
-.lm-dot[data-tone="ok"] { background: var(--lm-ok); }
-.lm-dot[data-tone="warn"] { background: var(--lm-warn); }
-.lm-dot[data-tone="err"] { background: var(--lm-err); }
-.lm-dot[data-tone="muted"] { background: var(--lm-caption); }
-.lm-dot[data-tone="idle"] { background: transparent; box-shadow: inset 0 0 0 1.5px var(--lm-caption); }
-.lm-dot[data-live="true"] { animation: lm-pulse 1.6s ease-in-out infinite; }
+.lm-row-flag { grid-column: 1; grid-row: 1; display: inline-flex; }
+.lm-row-meta { grid-column: 2; grid-row: 1; display: flex; align-items: center; gap: 6px; min-width: 0; height: 17px; }
+.lm-row-sep { flex: none; color: var(--lm-caption); font-size: 10px; line-height: 17px; }
+.lm-row-flag[data-tone="ok"] { color: var(--lm-ok-ink); }
+.lm-row-flag[data-tone="warn"] { color: var(--lm-warn-ink); }
+.lm-row-flag[data-tone="err"] { color: var(--lm-err-ink); }
+.lm-row-flag[data-tone="muted"] { color: var(--lm-caption); }
 .lm-row-title {
-  flex: 1; min-width: 0;
-  font-size: 13px; line-height: 20px; font-weight: 500;
+  grid-column: 2; grid-row: 2; min-width: 0;
+  font-size: 14px; line-height: 21px; font-weight: 500;
   color: var(--lm-text); letter-spacing: -.005em;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.lm-row-flag { flex: none; display: inline-flex; color: var(--lm-ok-ink); }
+.lm-row-flag { flex: none; display: inline-flex; color: var(--lm-text-3); }
 .lm-row-time {
-  flex: none; font-size: 10.5px; line-height: 16px;
+  min-width: 0; font-size: 11px; line-height: 17px;
   color: var(--lm-text-3); font-variant-numeric: tabular-nums;
-  letter-spacing: -.01em;
+  letter-spacing: -.01em; white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis;
 }
-.lm-row-sub { display: flex; align-items: center; gap: 6px; min-width: 0; margin: 2px 0 0 13px; }
-.lm-row-desc {
-  flex: 1; min-width: 0;
-  font-size: 11.5px; line-height: 17px; color: var(--lm-text-3);
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
-.lm-row-desc[data-tone="err"] { color: var(--lm-err-ink); }
-.lm-row-desc[data-tone="warn"] { color: var(--lm-warn-ink); }
-.lm-row-desc[data-tone="pending"] { color: var(--lm-warn-ink); }
 .lm-row-dur {
-  flex: none; font-size: 10.5px; line-height: 16px;
+  flex: none;
+  font-size: 11px; line-height: 17px;
   color: var(--lm-text-3); font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 .lm-list-foot {
   flex: none; padding: 8px 14px;
@@ -398,9 +367,6 @@ window.__ModuleLoader__.load({
   font-size: 11px; line-height: 16px; color: var(--lm-text-3);
   background: var(--lm-list-bg);
 }
-.lm-list-foot a { color: var(--lm-text-3); text-decoration: none; display: inline-flex; align-items: center; gap: 4px; }
-.lm-list-foot a:hover { color: var(--lm-link); }
-.lm-list-foot-spacer { flex: 1; }
 
 /* ---------------------------------------------------------------- skeletons */
 .lm-sk-row { padding: 10px 11px; margin-bottom: 2px; }
@@ -449,22 +415,22 @@ window.__ModuleLoader__.load({
   background: var(--lm-bg);
 }
 .lm-detail-head-inner {
-  width: 100%; max-width: 760px;
+  width: 100%; max-width: 720px;
   margin: 0 auto; padding: 0 24px;
 }
 .lm-detail-top { display: flex; align-items: flex-start; gap: 10px; min-width: 0; }
 .lm-back { display: none; width: 28px; padding: 0; flex: none; margin-left: -4px; }
 .lm-detail-title {
   flex: 1; min-width: 0; margin: 0;
-  font-size: 17px; line-height: 26px; font-weight: 600;
-  letter-spacing: -.015em;
+  font-size: 16px; line-height: 24px; font-weight: 600;
+  letter-spacing: -.012em;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .lm-actions { display: flex; align-items: center; gap: 4px; flex: none; }
 .lm-detail-meta {
   display: flex; align-items: center; flex-wrap: wrap;
-  gap: 4px 8px; margin-top: 5px;
-  font-size: 11.5px; line-height: 18px; color: var(--lm-text-3);
+  gap: 4px 8px; margin-top: 6px;
+  font-size: 12px; line-height: 19px; color: var(--lm-text-3);
 }
 .lm-meta-item { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
 .lm-meta-item svg { color: var(--lm-caption); }
@@ -483,18 +449,16 @@ window.__ModuleLoader__.load({
 .lm-pill[data-live="true"] .lm-pill-dot { animation: lm-pulse 1.6s ease-in-out infinite; }
 .lm-delivery {
   display: flex; align-items: center; flex-wrap: wrap;
-  gap: 4px 11px; margin-top: 7px;
-  font-size: 10.5px; line-height: 16px; color: var(--lm-text-3);
+  gap: 4px 11px; margin-top: 8px;
+  font-size: 11px; line-height: 17px; color: var(--lm-text-3);
 }
 .lm-del { display: inline-flex; align-items: center; gap: 3px; white-space: nowrap; }
 .lm-del svg { color: var(--lm-ok-ink); }
-.lm-del a { color: var(--lm-text-3); text-decoration: none; }
-.lm-del a:hover { color: var(--lm-link); }
 .lm-del[data-tone="muted"] svg { color: var(--lm-caption); }
 
 .lm-detail-scroll { flex: 1; min-height: 0; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--dsw-alias-scrollbar-bg-l1, rgba(0,0,0,.16)) transparent; }
 .lm-detail-inner {
-  max-width: 760px; margin: 0 auto;
+  max-width: 720px; margin: 0 auto;
   padding: 20px 24px 52px;
   animation: lm-fade .2s ease-out;
 }
@@ -502,7 +466,7 @@ window.__ModuleLoader__.load({
 /* ---------------------------------------------------------------- content */
 .lm-quote {
   position: relative;
-  padding: 12px 15px 12px 17px;
+  padding: 13px 16px 13px 18px;
   border-radius: 10px;
   background: color-mix(in srgb, var(--lm-brand) 4%, transparent);
   border: .5px solid color-mix(in srgb, var(--lm-brand) 9%, transparent);
@@ -512,39 +476,39 @@ window.__ModuleLoader__.load({
   width: 2px; border-radius: 0 2px 2px 0; background: var(--lm-brand);
 }
 .lm-quote-label {
-  font-size: 10px; line-height: 14px; font-weight: 500;
+  font-size: 11px; line-height: 15px; font-weight: 500;
   letter-spacing: .06em; color: var(--lm-text-3);
   margin-bottom: 3px;
 }
-.lm-quote-text { font-size: 13.5px; line-height: 1.75; color: var(--lm-text); }
+.lm-quote-text { font-size: 14.5px; line-height: 1.72; color: var(--lm-text); }
 
-.lm-md { margin-top: 4px; font-size: 13px; line-height: 1.8; color: var(--lm-text); }
-.lm-md p { margin: 6px 0; }
+.lm-md { margin-top: 6px; font-size: 14px; line-height: 1.78; color: var(--lm-text); }
+.lm-md p { margin: 8px 0; }
 .lm-md h2 {
   display: flex; align-items: center; gap: 10px;
-  margin: 22px 0 8px;
-  font-size: 14px; line-height: 22px; font-weight: 600;
+  margin: 24px 0 10px;
+  font-size: 15px; line-height: 24px; font-weight: 600;
   letter-spacing: -.005em; color: var(--lm-text);
 }
 .lm-md h2::after { content: ''; flex: 1; height: .5px; background: var(--lm-border); }
-.lm-md h3 { margin: 16px 0 5px; font-size: 13px; line-height: 20px; font-weight: 600; color: var(--lm-text); }
-.lm-md h1 { margin: 18px 0 8px; font-size: 15px; line-height: 24px; font-weight: 600; }
-.lm-md ul { list-style: none; margin: 4px 0 10px; padding: 0; }
-.lm-md ul li { position: relative; padding-left: 15px; margin: 3px 0; }
+.lm-md h3 { margin: 18px 0 6px; font-size: 14px; line-height: 22px; font-weight: 600; color: var(--lm-text); }
+.lm-md h1 { margin: 20px 0 10px; font-size: 16.5px; line-height: 26px; font-weight: 600; }
+.lm-md ul { list-style: none; margin: 5px 0 11px; padding: 0; }
+.lm-md ul li { position: relative; padding-left: 16px; margin: 4px 0; }
 .lm-md ul li::before {
   content: ''; position: absolute; left: 4px; top: .72em;
   width: 3px; height: 3px; border-radius: 50%;
   background: var(--lm-caption);
 }
 .lm-md ol { margin: 4px 0 10px; padding-left: 20px; }
-.lm-md ol li { margin: 3px 0; padding-left: 2px; }
+.lm-md ol li { margin: 4px 0; padding-left: 2px; }
 .lm-md ol li::marker { color: var(--lm-caption); font-variant-numeric: tabular-nums; font-size: 12px; }
 .lm-md strong { font-weight: 600; color: var(--lm-text); }
 .lm-md em { font-style: italic; }
 .lm-md code {
   padding: 1px 5px; border-radius: 4px;
   background: var(--dsw-alias-markdown-inline-code, rgba(0, 0, 0, .05));
-  font-family: var(--lm-mono); font-size: 12px;
+  font-family: var(--lm-mono); font-size: 12.5px;
 }
 .lm-md a {
   color: var(--lm-link); text-decoration: none;
@@ -559,7 +523,7 @@ window.__ModuleLoader__.load({
 
 .lm-section { margin-top: 24px; }
 .lm-section-head { display: flex; align-items: center; gap: 7px; margin-bottom: 7px; }
-.lm-section-title { font-size: 13px; line-height: 20px; font-weight: 600; letter-spacing: -.005em; }
+.lm-section-title { font-size: 14px; line-height: 21px; font-weight: 600; letter-spacing: -.005em; }
 .lm-count {
   min-width: 16px; height: 16px; padding: 0 4px;
   display: inline-flex; align-items: center; justify-content: center;
@@ -588,7 +552,7 @@ window.__ModuleLoader__.load({
   background: var(--lm-brand); border-color: var(--lm-brand); color: var(--lm-on-brand);
 }
 .lm-todo-main { flex: 1; min-width: 0; display: flex; align-items: baseline; flex-wrap: wrap; gap: 2px 7px; }
-.lm-todo-text { flex: 0 1 auto; min-width: 0; font-size: 13px; line-height: 20px; color: var(--lm-text); }
+.lm-todo-text { flex: 0 1 auto; min-width: 0; font-size: 14px; line-height: 22px; color: var(--lm-text); }
 .lm-todo[data-done="true"] .lm-todo-text {
   color: var(--lm-text-3);
   text-decoration: line-through;
@@ -596,9 +560,9 @@ window.__ModuleLoader__.load({
 }
 .lm-tag {
   display: inline-flex; align-items: center; gap: 3px;
-  height: 18px; padding: 0 6px; border-radius: 5px;
+  height: 19px; padding: 0 6px; border-radius: 5px;
   background: color-mix(in srgb, var(--lm-text) 5%, transparent);
-  color: var(--lm-text-2); font-size: 10.5px; line-height: 1;
+  color: var(--lm-text-2); font-size: 11.5px; line-height: 1;
   white-space: nowrap;
 }
 .lm-tag[data-kind="due"] { background: color-mix(in srgb, var(--lm-warn) 12%, transparent); color: var(--lm-warn-ink); }
@@ -608,7 +572,7 @@ window.__ModuleLoader__.load({
 .lm-chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .lm-chip {
   display: inline-flex; align-items: center;
-  height: 22px; padding: 0 9px; border-radius: 999px;
+  height: 23px; padding: 0 9px; border-radius: 999px;
   background: color-mix(in srgb, var(--lm-text) 5%, transparent);
   color: var(--lm-text-2); font-size: 11px; line-height: 1;
 }
@@ -625,14 +589,14 @@ window.__ModuleLoader__.load({
   flex: 1; min-width: 0; height: 38px; padding: 0 11px;
   border: .5px solid var(--lm-border); border-radius: 9px;
   background: transparent; cursor: pointer; text-align: left;
-  color: var(--lm-text-2); font-size: 12px;
+  color: var(--lm-text-2); font-size: 12.5px;
   transition: background .12s ease, border-color .12s ease;
 }
 @media (hover: hover) { .lm-transcript-toggle:hover { background: var(--lm-hover); } }
 .lm-transcript-toggle[aria-expanded="true"] { border-color: var(--lm-border); background: color-mix(in srgb, var(--lm-text) 2.5%, transparent); }
 .lm-chevron { flex: none; color: var(--lm-caption); transition: transform .16s ease; }
 .lm-transcript-toggle[aria-expanded="true"] .lm-chevron { transform: rotate(90deg); }
-.lm-transcript-meta { flex: 1; min-width: 0; color: var(--lm-text-3); font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lm-transcript-meta { flex: 1; min-width: 0; color: var(--lm-text-3); font-size: 11.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .lm-transcript-toggle .lm-btn { height: 24px; }
 .lm-transcript {
   margin-top: 8px; padding: 6px;
@@ -652,9 +616,9 @@ window.__ModuleLoader__.load({
 }
 .lm-turn-main { flex: 1; min-width: 0; }
 .lm-turn-head { display: flex; align-items: baseline; gap: 6px; }
-.lm-turn-who { font-size: 11.5px; line-height: 17px; font-weight: 600; color: var(--lm-text-2); }
-.lm-turn-time { font-size: 10px; line-height: 15px; color: var(--lm-text-3); font-family: var(--lm-mono); }
-.lm-turn-text { margin-top: 1px; font-size: 13px; line-height: 1.72; color: var(--lm-text); word-break: break-word; }
+.lm-turn-who { font-size: 12px; line-height: 18px; font-weight: 600; color: var(--lm-text-2); }
+.lm-turn-time { font-size: 10.5px; line-height: 16px; color: var(--lm-text-3); font-family: var(--lm-mono); }
+.lm-turn-text { margin-top: 2px; font-size: 13.5px; line-height: 1.72; color: var(--lm-text); word-break: break-word; }
 .lm-transcript-more {
   width: 100%; height: 30px; margin-top: 4px;
   border: .5px solid var(--lm-border); border-radius: 7px;
@@ -669,12 +633,11 @@ window.__ModuleLoader__.load({
   border-top: .5px solid var(--lm-border-soft);
   display: flex; flex-wrap: wrap; align-items: center;
   gap: 5px 14px;
-  font-size: 10.5px; line-height: 16px; color: var(--lm-text-3);
+  font-size: 11px; line-height: 17px; color: var(--lm-text-3);
 }
 .lm-foot-item { display: inline-flex; align-items: center; gap: 4px; }
 .lm-foot a { color: var(--lm-text-3); text-decoration: none; }
 .lm-foot a:hover { color: var(--lm-link); }
-.lm-foot-spacer { flex: 1; }
 
 /* ---------------------------------------------------------------- process */
 .lm-progress {
@@ -799,7 +762,6 @@ window.__ModuleLoader__.load({
   .lm-root[data-mobile-detail="true"] .lm-tools { display: none; }
   .lm-back { display: inline-flex; }
   .lm-head { padding: 5px 10px 5px 12px; gap: 8px; min-height: 50px; }
-  .lm-brand-sub { display: none; }
   .lm-search { flex: 1; width: auto; min-width: 0; max-width: none; }
   .lm-search .lm-kbd { display: none; }
   .lm-tools { padding: 5px 10px; gap: 6px; }
@@ -807,11 +769,10 @@ window.__ModuleLoader__.load({
   .lm-tabs::-webkit-scrollbar { display: none; }
   .lm-tab { padding: 0 8px; }
   .lm-tool-meta { display: none; }
-  .lm-auth-sub { display: none; }
   .lm-btn-label { display: none; }
   .lm-icon-btn { width: 30px; height: 30px; }
   .lm-list-scroll { padding: 6px 8px 10px; }
-  .lm-detail-title { font-size: 16px; line-height: 24px; white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .lm-detail-title { font-size: 15.5px; line-height: 23px; white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
   .lm-detail-meta { font-size: 11px; }
   .lm-detail-inner { padding: 14px 16px 40px; }
   .lm-quote-text { font-size: 13px; }
@@ -823,8 +784,6 @@ window.__ModuleLoader__.load({
   .lm-head { flex-wrap: wrap; row-gap: 6px; padding-bottom: 8px; }
   .lm-head-spacer { display: none; }
   .lm-search { order: 5; flex: 1 1 100%; width: 100%; }
-  .lm-size { display: none; }
-  .lm-tool-sep { display: none; }
   .lm-tools-spacer { min-width: 0; }
 }
 @container (max-width: 440px) {
@@ -846,7 +805,6 @@ window.__ModuleLoader__.load({
   .lm-actions { flex: 1 1 100%; justify-content: flex-end; }
   .lm-search { display: none; }
   .lm-brand-text { display: none; }
-  .lm-auth-text, .lm-auth-sub { display: none; }
   .lm-tab-count { display: none; }
 }
 `
@@ -889,6 +847,12 @@ window.__ModuleLoader__.load({
     function IconWaveSolid(props) {
       return h(Svg, props,
         h('path', { d: 'M4.2 8.1v3.8M7 5.6v8.8M9.9 7v6M12.8 5.2v9.6M15.7 8.3v3.4', ...stroke, strokeWidth: 1.9 }))
+    }
+
+    function IconChat(props) {
+      return h(Svg, props,
+        h('path', { d: 'M4 5.6h12v7.2H8.9L4.9 15.6v-2.8H4z', ...stroke }),
+        h('path', { d: 'M6.8 8.3h6.4M6.8 10.5h4.2', ...stroke, strokeWidth: 1.2 }))
     }
 
     function IconSearch(props) {
@@ -1044,6 +1008,15 @@ window.__ModuleLoader__.load({
       return `同步于 ${relativeTime(ms)}`
     }
 
+    // 和「同步」按钮并排用的紧凑写法：只给「刚刚 / 3 分钟前 / 14:03」，避免「同步 同步」
+    function syncShort(ms) {
+      if (!ms) return ''
+      const diff = Date.now() - ms
+      if (diff < 60000) return '刚刚'
+      if (diff < 3600000) return `${Math.max(1, Math.round(diff / 60000))} 分钟前`
+      return relativeTime(ms)
+    }
+
     function remainingText(expiresAt) {
       const at = Date.parse(String(expiresAt ?? ''))
       if (!Number.isFinite(at)) return ''
@@ -1054,22 +1027,6 @@ window.__ModuleLoader__.load({
       const hours = Math.floor(minutes / 60)
       const rest = minutes % 60
       return rest ? `${hours} 小时 ${rest} 分后过期` : `${hours} 小时后过期`
-    }
-
-    function remainingMinutes(expiresAt) {
-      const at = Date.parse(String(expiresAt ?? ''))
-      if (!Number.isFinite(at)) return null
-      return Math.round((at - Date.now()) / 60000)
-    }
-
-    function remainingShort(expiresAt) {
-      const minutes = remainingMinutes(expiresAt)
-      if (minutes === null) return ''
-      if (minutes <= 0) return '已过期'
-      if (minutes < 60) return `${minutes}m`
-      const hours = Math.floor(minutes / 60)
-      const rest = minutes % 60
-      return rest ? `${hours}h${rest}m` : `${hours}h`
     }
 
     function formatChars(n) {
@@ -1216,15 +1173,6 @@ window.__ModuleLoader__.load({
       return /^[a-zA-Z]/.test(text) ? text[0].toUpperCase() : text[0]
     }
 
-    function rowDescription(item) {
-      if (item.status === 'failed') return { tone: 'err', text: item.error || '处理失败' }
-      if (item.status === 'skipped') return { tone: 'muted', text: '逐字稿太短，已跳过' }
-      if (isPending(item.status)) {
-        return { tone: item.status === 'discovered' ? 'muted' : 'pending', text: `${STAGE_LABEL[item.status]}${item.status === 'discovered' ? '' : '…'}` }
-      }
-      return { tone: 'muted', text: item.oneLiner || '已生成纪要' }
-    }
-
     function statusPill(item, working) {
       if (working) return { tone: 'warn', label: '正在整理', live: true }
       if (item.status === 'failed') return { tone: 'err', label: '处理失败' }
@@ -1289,37 +1237,45 @@ window.__ModuleLoader__.load({
 
     function ListRow(props) {
       const item = props.item
-      const description = rowDescription(item)
       const selected = props.selected
       const time = relativeTime(item.createTime)
       const duration = durationText(item.durationMs)
-      const dotTone = item.status === 'failed'
-        ? 'err'
-        : isPending(item.status)
-          ? 'warn'
-          : item.docUrl
-            ? 'ok'
-            : 'idle'
+      // 状态标记统一放在标题右侧（与「文件+对号」同一位置），左侧不再画圆点
+      const flag = item.docUrl
+        ? { tone: 'ok', icon: IconDoc, title: '已生成纪要文档' }
+        : item.status === 'failed'
+          ? { tone: 'err', icon: IconAlert, title: item.error || '处理失败' }
+          : item.status === 'skipped'
+            ? { tone: 'muted', icon: IconClock, title: '已跳过：逐字稿太短' }
+            : isPending(item.status)
+              ? {
+                tone: 'warn',
+                icon: item.status === 'discovered' ? IconSparkle : IconSpinner,
+                title: item.status === 'discovered' ? '待整理' : (STAGE_LABEL[item.status] || '处理中'),
+              }
+              : null
       return h('button', {
         type: 'button',
         id: `lm-row-${item.token}`,
         className: 'lm-row',
+        title: item.status === 'failed' ? (item.error || '处理失败') : (item.oneLiner || item.title),
         'aria-current': selected ? 'true' : undefined,
         onClick: () => props.onSelect(item.token),
         onKeyDown: (event) => props.onKeyDown(event, item),
       },
-      h('span', { className: 'lm-row-main' },
-        h('span', {
-          className: 'lm-dot',
-          'data-tone': dotTone,
-          'data-live': isPending(item.status) && item.status !== 'discovered' ? 'true' : undefined,
-        }),
-        h('span', { className: 'lm-row-title' }, item.title),
-        item.docUrl ? h('span', { className: 'lm-row-flag', title: '已生成纪要文档' }, h(IconDoc, { size: 14 })) : null,
-        time ? h('span', { className: 'lm-row-time' }, time) : null),
-      h('span', { className: 'lm-row-sub' },
-        h('span', { className: 'lm-row-desc', 'data-tone': description.tone === 'muted' ? undefined : description.tone }, description.text),
-        duration ? h('span', { className: 'lm-row-dur' }, duration) : null))
+      // 网格：图标占第一列，元信息与标题都从第二列起笔，标题自然和日期左对齐
+      flag
+        ? h('span', { className: 'lm-row-flag', 'data-tone': flag.tone, title: flag.title },
+          h(flag.icon, {
+            size: 13,
+            className: flag.icon === IconSpinner ? 'lm-spin' : undefined,
+          }))
+        : null,
+      h('span', { className: 'lm-row-meta' },
+        time ? h('span', { className: 'lm-row-time' }, time) : null,
+        time && duration ? h('span', { className: 'lm-row-sep' }, '·') : null,
+        duration ? h('span', { className: 'lm-row-dur' }, duration) : null),
+      h('span', { className: 'lm-row-title' }, item.title))
     }
 
     // ---------------------------------------------------------------- detail
@@ -1382,22 +1338,6 @@ window.__ModuleLoader__.load({
             disabled: props.busy,
             title: props.busy ? '正在整理，请稍候' : '生成纪要',
           }, props.busy ? h(IconSpinner, { size: 14, className: 'lm-spin' }) : h(IconSparkle, { size: 14 }), props.busy ? '正在整理…' : '生成纪要'),
-          props.openUrl
-            ? h('a', {
-              key: 'open',
-              className: 'lm-btn',
-              href: props.openUrl,
-              target: '_blank',
-              rel: 'noreferrer',
-            }, h(IconExternal, { size: 14 }), '打开妙记')
-            : null,
-        ],
-        steps: [
-          h('span', { key: 'a' }, '完整逐字稿'),
-          h(IconChevron, { key: 's1', size: 12 }),
-          h('span', { key: 'b' }, '标题与纪要'),
-          h(IconChevron, { key: 's2', size: 12 }),
-          h('span', { key: 'c' }, '飞书文档'),
         ],
       })
     }
@@ -1543,15 +1483,15 @@ window.__ModuleLoader__.load({
         }),
         h('div', { className: 'lm-foot' },
           model ? h('span', { className: 'lm-foot-item' }, `模型 ${model}`) : null,
+          generated.fromDoc ? h('span', { className: 'lm-foot-item' }, '正文回读自飞书文档') : null,
           (item.transcriptChars && !transcriptRaw)
             ? h('span', { className: 'lm-foot-item' }, `逐字稿 ${formatChars(item.transcriptChars)} 未留存`)
             : null,
           item.originalTitle && item.originalTitle !== item.title
             ? h('span', { className: 'lm-foot-item' }, `原名「${item.originalTitle}」`)
             : null,
-          updatedAt ? h('span', { className: 'lm-foot-item' }, `更新于 ${relativeTime(updatedAt.getTime())}`) : null,
-          h('span', { className: 'lm-foot-spacer' }),
-          item.url ? h('a', { href: item.url, target: '_blank', rel: 'noreferrer', className: 'lm-foot-item' }, '妙记原文', h(IconExternal, { size: 11 })) : null))
+          // 妙记链接只在头部操作区出现一次，这里不再重复
+          updatedAt ? h('span', { className: 'lm-foot-item' }, `更新于 ${relativeTime(updatedAt.getTime())}`) : null))
     }
 
     function Detail(props) {
@@ -1582,11 +1522,12 @@ window.__ModuleLoader__.load({
           : null,
       ].filter(Boolean)
 
+      // 交付徽标只表达状态：跳转入口统一放在头部操作区，避免同一个链接在一屏里出现两次
       const delivery = []
       if (item.docUrl) {
         delivery.push(h('span', { key: 'doc', className: 'lm-del' },
           h(IconCheck, { size: 11 }),
-          h('a', { href: item.docUrl, target: '_blank', rel: 'noreferrer' }, '纪要文档已生成')))
+          h('span', null, item.adoptedAt ? '纪要在其他设备已生成' : '纪要文档已生成')))
       } else if (!isPending(item.status) && item.status !== 'failed') {
         delivery.push(h('span', { key: 'nodoc', className: 'lm-del', 'data-tone': 'muted' }, h(IconDoc, { size: 11 }), '未生成纪要文档'))
       }
@@ -1596,7 +1537,7 @@ window.__ModuleLoader__.load({
       if (item.docUrl && state?.index?.url) {
         delivery.push(h('span', { key: 'index', className: 'lm-del' },
           h(IconCheck, { size: 11 }),
-          h('a', { href: state.index.url, target: '_blank', rel: 'noreferrer' }, '索引文档已更新')))
+          h('span', null, '索引已更新')))
       }
 
       const progressStage = serverProcessing
@@ -1609,6 +1550,36 @@ window.__ModuleLoader__.load({
           key: item.token,
           detail,
           onCopyTranscript: props.onCopyTranscript,
+        })
+        : null
+      // 走到这里说明「文档存在但正文没读回来」（接口失败/无权限/文档被清空）
+      const adoptedCard = !generated && item.docUrl
+        ? h(EmptyState, {
+          title: '没能读回纪要正文',
+          desc: detail.hydrateError
+            ? `已找到飞书文档，但读取失败：${detail.hydrateError}`
+            : '已找到飞书文档，但这次没读到正文，可以重试一次。',
+          icon: h(IconAlert, { size: 21 }),
+          actions: h('div', { className: 'lm-actions' },
+            h('button', {
+              type: 'button',
+              className: 'lm-btn lm-btn-primary',
+              onClick: props.onReload,
+              disabled: props.loading,
+            }, props.loading ? h(IconSpinner, { size: 14, className: 'lm-spin' }) : h(IconRefresh, { size: 14 }), '重新拉取'),
+            h('a', {
+              className: 'lm-btn lm-btn-quiet',
+              href: item.docUrl,
+              target: '_blank',
+              rel: 'noreferrer',
+            }, h(IconDoc, { size: 14 }), '打开飞书文档'),
+            h('button', {
+              type: 'button',
+              className: 'lm-btn lm-btn-quiet',
+              onClick: props.onProcess,
+              disabled: processing || busyElsewhere,
+              title: '在本机重新生成，会覆盖同一篇飞书文档',
+            }, h(IconSparkle, { size: 14 }), '本机重新生成')),
         })
         : null
       const body = processing
@@ -1637,10 +1608,9 @@ window.__ModuleLoader__.load({
                 }, h(IconExternal, { size: 14 }), '打开妙记')
                 : null,
             })
-            : content || h(StartCard, {
+            : content || adoptedCard || h(StartCard, {
               busy: processing || busyElsewhere,
               onProcess: props.onProcess,
-              openUrl: item.url || '',
             })
 
       const canProcess = !processing && !busyElsewhere && item.status !== 'skipped'
@@ -1648,9 +1618,10 @@ window.__ModuleLoader__.load({
         ? '处理中'
         : item.status === 'failed'
           ? '重试整理'
-          : generated
+          : generated || item.docUrl
             ? '重新生成'
             : '生成纪要'
+      const canSend = Boolean(item.docUrl || generated) && item.status !== 'skipped'
       const actions = h('div', { className: 'lm-actions' },
         item.url
           ? h('a', {
@@ -1676,7 +1647,7 @@ window.__ModuleLoader__.load({
           ? null
           : h('button', {
             type: 'button',
-            className: 'lm-btn lm-btn-primary',
+            className: canSend ? 'lm-btn lm-btn-quiet' : 'lm-btn lm-btn-primary',
             onClick: props.onProcess,
             disabled: !canProcess,
             title: processing
@@ -1694,7 +1665,21 @@ window.__ModuleLoader__.load({
             : item.status === 'failed'
               ? h(IconRefresh, { size: 14 })
               : h(IconSparkle, { size: 14 }),
-          h('span', null, actionLabel)))
+          h('span', null, actionLabel)),
+        // 主动作固定贴在操作区最右侧
+        canSend
+          ? h('button', {
+            type: 'button',
+            className: 'lm-btn lm-btn-primary',
+            onClick: () => props.onSendToChat(item.token),
+            disabled: Boolean(props.sending) || processing,
+            title: '在新会话里打开：两份 md 附件（总结 + 逐字稿）+ 预填提示词，不会自动发送',
+          },
+          props.sending === item.token
+            ? h(IconSpinner, { size: 14, className: 'lm-spin' })
+            : h(IconChat, { size: 14 }),
+          h('span', { className: 'lm-btn-label' }, '发送到对话'))
+          : null)
 
       const metaRow = h('div', { className: 'lm-detail-meta' },
         meta.map((node, index) => h(React.Fragment, { key: index }, index ? h('span', { className: 'lm-sep' }) : null, node)),
@@ -1736,22 +1721,17 @@ window.__ModuleLoader__.load({
       const [detail, setDetail] = useState(null)
       const [loadingDetail, setLoadingDetail] = useState(false)
       const [syncing, setSyncing] = useState(false)
+      const [sending, setSending] = useState('')
       const [working, setWorking] = useState('')
       const [error, setError] = useState('')
       const [toast, setToast] = useState(null)
       const [tick, setTick] = useState(0)
       const [query, setQuery] = useState('')
       const [filter, setFilter] = useState('all')
-      const [size, setSize] = useState(() => {
-        try {
-          const stored = Number(localStorage.getItem('dsh-lark-minutes:size'))
-          if (SIZE_OPTIONS.includes(stored)) return stored
-        } catch {}
-        return 10
-      })
       const [mobileDetail, setMobileDetail] = useState(false)
       const selectedRef = useRef('')
       const workingRef = useRef('')
+      const sendingRef = useRef('')
       const syncingRef = useRef(false)
       const listRef = useRef(null)
       const detailScrollRef = useRef(null)
@@ -1777,7 +1757,7 @@ window.__ModuleLoader__.load({
         function load() {
           // The list is the critical path; auth status runs against lark-cli and
           // can be slow, so it must not hold the list back.
-          const listTask = api(`/list?size=${FETCH_SIZE}`)
+          const listTask = api('/list')
             .then((listRes) => {
               if (!alive) return
               if (listRes?.ok) {
@@ -1808,7 +1788,7 @@ window.__ModuleLoader__.load({
           alive = false
           clearInterval(timer)
         }
-      }, [tick, size])
+      }, [tick])
 
       // detail
       useEffect(() => {
@@ -1849,7 +1829,7 @@ window.__ModuleLoader__.load({
           try {
             const [detailRes, listRes] = await Promise.all([
               api(`/item?token=${encodeURIComponent(token)}`),
-              api(`/list?size=${FETCH_SIZE}`),
+              api('/list'),
             ])
             if (!alive) return
             if (detailRes?.ok && selectedRef.current === token) setDetail(detailRes)
@@ -1866,7 +1846,7 @@ window.__ModuleLoader__.load({
           alive = false
           clearInterval(timer)
         }
-      }, [working, size])
+      }, [working])
 
       // toast auto dismiss
       useEffect(() => {
@@ -1883,13 +1863,7 @@ window.__ModuleLoader__.load({
       // a new filter/search starts from the top of the list
       useEffect(() => {
         if (listRef.current) listRef.current.scrollTop = 0
-      }, [filter, query, size])
-
-      useEffect(() => {
-        try {
-          localStorage.setItem('dsh-lark-minutes:size', String(size))
-        } catch {}
-      }, [size])
+      }, [filter, query])
 
       // ⌘K / "/" search, Esc — only while the panel is the visible surface
       useEffect(() => {
@@ -1940,7 +1914,6 @@ window.__ModuleLoader__.load({
         for (const item of items) {
           if (item.status === 'failed') local.failed += 1
           else if (item.status === 'ready') local.ready += 1
-          else if (item.status === 'skipped') continue
           else local.pending += 1
         }
         return local
@@ -1949,7 +1922,7 @@ window.__ModuleLoader__.load({
       const matched = useMemo(() => {
         const keyword = query.trim().toLowerCase()
         return items.filter((item) => {
-          if (filter === 'pending' && !isPending(item.status)) return false
+          if (filter === 'pending' && !(isPending(item.status) || item.status === 'skipped')) return false
           if (filter === 'ready' && item.status !== 'ready') return false
           if (filter === 'failed' && item.status !== 'failed') return false
           if (!keyword) return true
@@ -1958,10 +1931,10 @@ window.__ModuleLoader__.load({
         })
       }, [items, filter, query])
 
-      // The default view is the inbox (latest N). A filter or a search looks
-      // across everything the plugin has already discovered.
+      // 「最新」就是窗口内发现的全部记录（Host 已经按时间窗口过滤过），
+      // 不再按条数分页；筛选和搜索只是在同一批记录上收敛。
       const searching = filter !== 'all' || Boolean(query.trim())
-      const visible = searching ? matched : matched.slice(0, size)
+      const visible = matched
 
       // when narrowing the list, keep a visible selection
       useEffect(() => {
@@ -1971,7 +1944,7 @@ window.__ModuleLoader__.load({
           setMobileDetail(false)
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-      }, [filter, query, size])
+      }, [filter, query])
 
       const selectItem = useCallback((token) => {
         setSelected(token)
@@ -2056,6 +2029,40 @@ window.__ModuleLoader__.load({
         }
       }, [pushToast])
 
+      const sendToChat = useCallback(async (token) => {
+        if (sendingRef.current) return
+        sendingRef.current = token
+        setSending(token)
+        try {
+          const exported = await api('/export', { method: 'POST', body: JSON.stringify({ token }) })
+          if (!exported?.ok) {
+            const message = String(exported?.error || '导出会议文件失败')
+            // 典型的「客户端已更新、Host 还是旧进程」：旧版没有这个路由
+            if (message.includes('unknown route')) throw new Error('DSH 还在运行旧版插件（Host 半没有热更新），重启 DSH 后再试')
+            throw new Error(message)
+          }
+          trace('exported', `${exported.summaryName} / ${exported.transcriptName} / ${exported.transcriptChars} chars`)
+          const [summaryBlob, transcriptBlob] = await Promise.all([
+            fetchExportFile(token, 'summary'),
+            fetchExportFile(token, 'transcript'),
+          ])
+          trace('downloaded', `${summaryBlob.size} + ${transcriptBlob.size} bytes`)
+          const files = [
+            new File([summaryBlob], exported.summaryName, { type: 'text/markdown' }),
+            new File([transcriptBlob], exported.transcriptName, { type: 'text/markdown' }),
+          ]
+          await openMeetingChat(files, exported.prompt)
+          trace('done', 'ok')
+          pushToast('ok', '已在新会话里放好两份附件，补上你的问题就能发')
+        } catch (error) {
+          trace('error', error?.message || String(error))
+          pushToast('err', error?.message || '发送到对话失败')
+        } finally {
+          sendingRef.current = ''
+          setSending('')
+        }
+      }, [pushToast])
+
       const copyTranscript = useCallback(async () => {
         const raw = detail?.transcript || ''
         if (!raw) {
@@ -2071,19 +2078,19 @@ window.__ModuleLoader__.load({
       }, [detail, pushToast])
 
       const auth = state?.auth
-      const authLeft = remainingMinutes(auth?.expiresAt)
-      const authTone = !auth ? 'muted' : !auth.ok ? 'err' : authLeft !== null && authLeft <= 15 ? 'warn' : 'ok'
-      const authText = !auth
-        ? '检查登录状态…'
-        : auth.ok
-          ? auth.name || '已登录'
-          : '登录失效'
+      // 登录正常时不展示身份（名字/绿点属噪音）；失效才提示一句，原因放 tooltip
+      const authBroken = auth ? auth.ok === false : false
       const authTitle = !auth
         ? '正在读取 lark-cli 登录状态'
         : auth.ok
           ? [auth.name, remainingText(auth.expiresAt)].filter(Boolean).join(' · ')
           : (auth.message || '请在终端运行 lark-cli auth login 重新登录')
       const syncText = syncLabel(state?.lastSync)
+      const syncBadge = !state
+        ? ''
+        : state.lastError
+          ? '上次失败'
+          : syncShort(state.lastSync)
 
       const showEmpty = !items.length && !error
       const noItems = !items.length && Boolean(state || error)
@@ -2102,8 +2109,7 @@ window.__ModuleLoader__.load({
         h('div', { className: 'lm-brand' },
           h('span', { className: 'lm-brand-mark' }, h(IconWaveSolid, { size: 16 })),
           h('div', { className: 'lm-brand-text' },
-            h('span', { className: 'lm-brand-title' }, '妙记工作台'),
-            total ? h('span', { className: 'lm-brand-sub' }, `共 ${total} 篇`) : null)),
+            h('span', { className: 'lm-brand-title' }, '妙记工作台'))),
         h('div', { className: 'lm-head-spacer' }),
         h('label', { className: 'lm-search' },
           h('span', { className: 'lm-search-icon' }, h(IconSearch, { size: 14 })),
@@ -2133,17 +2139,36 @@ window.__ModuleLoader__.load({
           href: state.index.url,
           target: '_blank',
           rel: 'noreferrer',
-          title: '打开妙记索引文档',
-          'aria-label': '打开妙记索引文档',
+          title: '妙记与纪要对照表',
+          'aria-label': '打开妙记与纪要对照表',
         }, h(IconDoc, { size: 14 }), h('span', { className: 'lm-btn-label' }, '索引')) : null,
         h('button', {
           type: 'button',
-          className: 'lm-btn lm-btn-quiet lm-icon-btn',
+          className: cx('lm-btn', 'lm-btn-quiet', 'lm-sync', state?.lastError ? 'lm-sync-failed' : null),
           onClick: syncNow,
           disabled: syncing,
-          title: syncing ? '正在同步…' : `立即同步（${syncText}）`,
-          'aria-label': '立即同步',
-        }, h(IconRefresh, { size: 15, className: syncing ? 'lm-spin' : undefined }))),
+          // 状态和动作放在同一个控件上：失败时这里就是「重试同步」
+          title: syncing
+            ? '正在同步…'
+            : state?.lastError
+              ? `上次同步失败：${state.lastError}\n点击重试`
+              : state?.lastWarning
+                ? `${state.lastWarning}\n点击再同步一次`
+                : `立即同步（${syncText}）`,
+          'aria-label': state?.lastError ? '重试同步' : '立即同步',
+        },
+        syncing
+          ? h(IconSpinner, { size: 14, className: 'lm-spin' })
+          : state?.lastError
+            ? h(IconAlert, { size: 14 })
+            : h(IconRefresh, { size: 14 }),
+        h('span', { className: 'lm-btn-label' }, syncing ? '同步中' : state?.lastError ? '重试同步' : '同步'),
+        syncBadge
+          ? h('span', {
+            className: 'lm-tool-meta lm-sync-state',
+            'data-tone': state?.lastError ? 'err' : state?.lastWarning ? 'warn' : 'muted',
+          }, `· ${syncBadge}`)
+          : null)),
       h('div', { className: 'lm-tools' },
         h('div', { className: 'lm-tabs', role: 'tablist', 'aria-label': '按状态筛选' },
           FILTERS.map((entry, index) => h('button', {
@@ -2166,27 +2191,12 @@ window.__ModuleLoader__.load({
                 target?.focus()
               })
             },
-          }, entry.label, entry.id === 'all' ? null : h('span', { className: 'lm-tab-count' }, String(counts[entry.id] ?? 0))))),
+          }, entry.label, h('span', { className: 'lm-tab-count' }, String(counts[entry.id] ?? 0))))),
         h('div', { className: 'lm-tools-spacer' }),
-        h('span', { className: 'lm-tool-meta', title: state?.lastError || '' },
-          state?.lastError ? h(IconAlert, { size: 12 }) : null,
-          state?.lastError ? '同步失败' : syncText),
-        h('span', { className: 'lm-tool-sep' }),
-        h('span', { className: 'lm-auth', 'data-tone': authTone, title: authTitle },
-          h('span', { className: 'lm-auth-dot' }),
-          h('span', { className: 'lm-auth-text' }, authText),
-          auth?.ok && remainingShort(auth.expiresAt)
-            ? h('span', { className: 'lm-auth-sub' }, `· ${remainingShort(auth.expiresAt)}`)
-            : null),
-        searching
-          ? null
-          : h('label', { className: 'lm-size', title: '默认视图显示条数' },
-            h('select', {
-              value: size,
-              'aria-label': '显示条数',
-              onChange: (event) => setSize(Number(event.target.value) || 10),
-            }, SIZE_OPTIONS.map((option) => h('option', { key: option, value: option }, `${option} 篇`))),
-            h('span', { className: 'lm-size-caret' }, h(IconChevronDown, { size: 12 })))),
+        authBroken
+          ? h('span', { className: 'lm-auth-warn', title: authTitle },
+            h(IconAlert, { size: 12 }), '登录失效')
+          : null),
       error
         ? h('div', { className: 'lm-banner', 'data-tone': auth?.ok === false ? 'warn' : undefined },
           h('span', { className: 'lm-banner-icon' }, h(IconAlert, { size: 15 })),
@@ -2268,19 +2278,10 @@ window.__ModuleLoader__.load({
                         },
                       }, '清除筛选'),
                     })),
-          total
+          // 只在搜索/筛选时给个计数；索引入口统一放在顶部（同一个文档，别放两处）
+          query || filter !== 'all'
             ? h('div', { className: 'lm-list-foot' },
-              h('span', null, query
-                ? `匹配 ${matched.length} 篇`
-                : filter !== 'all'
-                  ? `筛选 ${matched.length} 篇`
-                  : total > visible.length
-                    ? `显示最新 ${visible.length} / 共 ${total} 篇`
-                    : `共 ${total} 篇`),
-              h('span', { className: 'lm-list-foot-spacer' }),
-              state?.index?.url
-                ? h('a', { href: state.index.url, target: '_blank', rel: 'noreferrer' }, '更早的妙记见索引', h(IconExternal, { size: 10 }))
-                : null)
+              h('span', null, query ? `匹配 ${matched.length} 篇` : `筛选 ${matched.length} 篇`))
             : null),
         h(Detail, {
           detail,
@@ -2289,11 +2290,146 @@ window.__ModuleLoader__.load({
           working,
           busyAny: Boolean(working),
           onProcess: runProcess,
+          onSendToChat: sendToChat,
+          sending,
+          onReload: () => setTick((value) => value + 1),
           onBack: () => setMobileDetail(false),
           onCopyTranscript: copyTranscript,
           scrollRef: detailScrollRef,
         })),
       toast ? h(Toast, { toast }) : null)
+    }
+
+    // ------------------------------------------------------- send to chat
+    // 把「总结 + 逐字稿」两份 md 附件放进一个**新会话**，并预填提示词（不自动发送）。
+    // 会话/附件/输入框都是 DSH 客户端服务：不同版本的方法名可能有差异，全部做了兜底探测。
+
+    // 出问题时有据可查：每一步上报到 Host 的 client-trace.log
+    function trace(step, detail) {
+      try {
+        fetch(`${API}/trace`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ step, detail: typeof detail === 'string' ? detail : JSON.stringify(detail ?? '') }),
+        }).catch(() => {})
+      } catch {}
+    }
+
+    function currentWorkspaceId() {
+      try {
+        const uiWorkspace = pluginCtx?.get('uiWorkspace')
+        const sessions = pluginCtx?.get('sessions')
+        const workspaces = pluginCtx?.get('workspaces')
+        const currentId = uiWorkspace?.selection?.getSnapshot?.()?.sessionId
+          ?? uiWorkspace?.current?.getSnapshot?.()?.sessionId
+        const summary = currentId ? sessions?.list?.getSnapshot?.()?.byId?.[currentId] : undefined
+        const items = workspaces?.list?.getSnapshot?.()?.items ?? []
+        const match = (summary?.cwd ? items.find((item) => item.path === summary.cwd) : undefined) ?? items[0]
+        return match?.workspaceId ?? ''
+      } catch {
+        return ''
+      }
+    }
+
+    function readMainSessionId() {
+      try {
+        const ref = pluginCtx?.get('uiWorkspace')?.mainReference
+        if (ref?.sessionId) return ref.sessionId
+      } catch {}
+      try {
+        const binding = pluginCtx?.get('uiSession')?.current?.getSnapshot?.()
+        if (binding?.sessionId) return binding.sessionId
+      } catch {}
+      return ''
+    }
+
+    /**
+     * 等「新会话成为当前会话」。注意 DSH 可能复用当前这个空白会话（id 不变），
+     * 所以除了看 id 变化，也接受「当前会话的草稿里已经出现我们的提示词」。
+     */
+    function waitForTargetSession(previousId, marker, timeoutMs = 12000) {
+      return new Promise((resolve) => {
+        const started = Date.now()
+        const attempt = () => {
+          const current = readMainSessionId()
+          if (current && current !== previousId) return resolve(current)
+          if (current) {
+            try {
+              const binding = pluginCtx?.get('sessions')?.binding?.(current)
+              const shell = binding ? pluginCtx?.get('conversation')?.input?.shellFor?.(binding) : undefined
+              if (shell?.projection?.clipboardText?.includes(marker)) return resolve(current)
+            } catch {}
+          }
+          if (Date.now() - started >= timeoutMs) return resolve('')
+          setTimeout(attempt, 150)
+        }
+        attempt()
+      })
+    }
+
+    /**
+     * 新会话 + 两份附件 + 预填提示词。
+     * 走 DSH 自己的 startSession 通道（它会新建/复用 blank、切过去、并把 prompt 写进
+     * 真实挂载的输入框），不再自己 new 一个游离的 shell——那样切过去会被空草稿覆盖。
+     */
+    async function openMeetingChat(files, prompt) {
+      const uiWorkspace = pluginCtx?.get('uiWorkspace')
+      const conversation = pluginCtx?.get('conversation')
+      const sessions = pluginCtx?.get('sessions')
+      if (!uiWorkspace || !conversation) throw new Error('当前 DSH 版本没有会话服务，无法新建会话')
+      if (typeof uiWorkspace.startSession !== 'function') throw new Error('当前 DSH 版本不支持新建会话')
+
+      const workspaceId = currentWorkspaceId() || undefined
+      const previousId = readMainSessionId()
+      trace('start', `${workspaceId || '(current)'} prev=${previousId || '(none)'}`)
+
+      uiWorkspace.startSession(workspaceId, { prompt, whenDraftExists: 'replace' })
+      const sessionId = await waitForTargetSession(previousId, '我需要你')
+      trace('session', sessionId || 'timeout')
+      if (!sessionId) throw new Error('新会话没有打开（导航超时），请再试一次')
+
+      // 导航刚完成时 binding 可能还没挂上，等一小会儿
+      let binding
+      for (let i = 0; i < 40 && !binding; i += 1) {
+        binding = sessions?.binding?.(sessionId)
+        if (!binding) await new Promise((resolve) => setTimeout(resolve, 150))
+      }
+      const shell = binding ? conversation.input?.shellFor?.(binding) : undefined
+      trace('shell', shell ? 'ready' : 'missing')
+
+      if (files.length) {
+        const drafts = conversation.createDrafts(sessionId, files, true)
+        trace('drafts', drafts.map((draft) => `${draft.file?.name}:${draft.id}`).join(','))
+        if (!shell || typeof shell.addAttachments !== 'function') {
+          conversation.releaseDraftAttachments?.(drafts)
+          throw new Error('新会话的输入框没有就绪，附件没能挂上')
+        }
+        const added = shell.addAttachments(drafts.map((draft) => draft.id))
+        trace('addAttachments', added)
+        if (!added) {
+          conversation.releaseDraftAttachments?.(drafts)
+          throw new Error('附件没有挂上输入框（会话正在发送或锁定）')
+        }
+      }
+
+      // prompt 已由 startSession 写进草稿；这里只做兜底校验
+      await new Promise((resolve) => setTimeout(resolve, 400))
+      try {
+        const text = shell?.projection?.clipboardText ?? ''
+        if (!text.includes('我需要你')) {
+          shell?.setDraft?.(prompt)
+          trace('setDraft-retry', `${prompt.length} chars`)
+        }
+      } catch (error) {
+        trace('verify-failed', error?.message ?? String(error))
+      }
+      return sessionId
+    }
+
+    async function fetchExportFile(token, kind) {
+      const response = await fetch(`${API}/export-file?token=${encodeURIComponent(token)}&kind=${kind}`)
+      if (!response.ok) throw new Error(`${kind === 'summary' ? '总结' : '逐字稿'}下载失败（${response.status}）`)
+      return response.blob()
     }
 
     // 单个注册点失败不能拖垮整个客户端入口：DSH 认为必需入口未激活时会整体中断
@@ -2316,6 +2452,7 @@ window.__ModuleLoader__.load({
     return {
       inject: ['slots'],
       apply(ctx) {
+        pluginCtx = ctx
         try {
           ensureStyles()
         } catch (error) {
@@ -2324,7 +2461,7 @@ window.__ModuleLoader__.load({
         try {
           fetch(`${API}/client-alive`, { method: 'POST' }).catch(() => {})
         } catch {}
-        contribute(ctx, { name: 'sidebar.panellist', id: 'lark-minutes', order: 20, label: () => '妙记' }, IconWave, '侧边栏入口')
+        contribute(ctx, { name: 'sidebar.panellist', id: 'lark-minutes', order: 20, label: () => '妙记工作台' }, IconWave, '侧边栏入口')
         contribute(ctx, { name: 'main', key: 'lark-minutes' }, Panel, '主面板')
       },
     }
