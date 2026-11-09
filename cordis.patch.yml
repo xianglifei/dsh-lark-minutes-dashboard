@@ -9,3 +9,4 @@
         listSize: 10
         autoWriteTitle: true
         createDocs: true
+        llmTimeoutMs: 180000

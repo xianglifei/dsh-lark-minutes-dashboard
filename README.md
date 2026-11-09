@@ -30,7 +30,7 @@ dsh --profile desktop plugin add link:/absolute/path/to/dsh-lark-minutes-dashboa
 ## 依赖
 
 - `lark-cli` ≥ 1.0.99，且 user 身份已登录（`lark-cli auth status`）
-- lark-cli 的 `--output-dir` / `@file` 只允许 cwd、`/tmp`、`~/files`，所以本插件把逐字稿和临时文档都放在 `/tmp/dsh-lark-minutes/`
+- lark-cli 的 `--output-dir` / `@file` 只接受 **cwd 内的相对路径**（绝对路径会报 `--output must be a relative path within the current directory`）。插件把所有 lark-cli 调用的 `cwd` 设成 `/tmp/dsh-lark-minutes`，参数传相对路径（`transcripts`、`doc-xxx/doc.md`），本地读写再拼回绝对路径。
 
 ## 数据
 
@@ -39,7 +39,9 @@ dsh --profile desktop plugin add link:/absolute/path/to/dsh-lark-minutes-dashboa
 - 待办勾选：浏览器 `localStorage`（`dsh-lark-minutes:todos:<token>`，只影响界面）
 - 飞书侧：每条妙记一篇 `<标题> · 妙记纪要` 文档 + 一篇索引文档
 
-## 接口（Host 半注册在非 /api 前缀下，本机可访问）
+## 接口（Host 半注册在 `/lark-minutes` 前缀下）
+
+路由会先过 DSH 的 Host/Origin 与浏览器登录校验（`ctx.connection.requestRejection`），未登录、跨站或 DNS rebinding 的请求会被 401/403 拒绝；因此这些接口只供面板自身同源调用，终端 `curl` 不再能直接读。
 
 ```
 GET  /lark-minutes/state                 认证状态、最后同步、索引文档
@@ -51,10 +53,14 @@ POST /lark-minutes/process {token}       生成纪要（建/更新文档 + 索�
 
 ## 已知限制
 
+- **发现范围是「最近 30 天 + 本地库历史」**：`+search` 不带时间范围时，返回结果既不是按时间排序、也不包含刚生成的最新妙记（要等通用索引刷新），所以同步固定按最近 30 天窗口查询（接口上限 1 个月），并按 `has_more` / `page_token` 翻页取全；列表顺序用搜索结果 `description` 里的「开始时间」当场解析，不依赖首屏顺序。
+- 只发现**我拥有的**妙记（`--owner-ids me`）；别人拥有、我只是参与的妙记不会进列表。
 - **事件通道不可用**：`minutes.minute.generated_v1` 被 lark-cli 的 console 预检误判拦截（用户身份事件不出现在 `app_versions.event_infos`，见 larksuite/cli#2833），因此改为 60 秒轮询。
-- 标题只在「原标题是默认名（新录音 N 等）」或「上次是我们写的」时才写回，避免覆盖用户自己起的名字。
+- 标题写回前会先读远端当前标题：只有「原标题是默认名（新录音 N 等）」或「当前标题仍是上次我们写的那个」时才写回，用户在飞书里改过的名字不会被覆盖。
+- DSH 退出或插件重载时，停在「读取逐字稿 / 生成纪要 / 写入文档」的记录会在下次启动时转成「处理失败」，可直接重试；不会永远转圈。
+- 模型调用有总超时（`llmTimeoutMs`，默认 180 秒），超时会记为失败并保留上一次成功的正文。
 - 重新生成会**覆盖**同一篇纪要文档，不会产生第二篇。
-- 纪要用的是 DSH 当前默认模型（`agentDefaultModel`），可在设置里换模型。
+- 纪要用的是 DSH 当前默认模型（`agentDefaultModel`，含推理档位），可在设置里换模型。
 - `GET /list` 的 `counts` 与 `GET /item` 的 `model` / `updatedAt` 是 v0.2 新增的 Host 字段；旧进程里没有这三个字段时，界面会自动退化为「按已拉取列表统计」并隐藏模型行，不影响使用。
 
 ## 结构
