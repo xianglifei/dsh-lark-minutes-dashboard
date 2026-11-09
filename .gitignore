@@ -1,0 +1,11 @@
+# macOS
+.DS_Store
+
+# Node
+node_modules/
+npm-debug.log*
+
+# 内部资料：真实会议内容与内部需求文档，不随公开仓库发布
+PRD.md
+docs/*.jpg
+event-subscribe-qr.png

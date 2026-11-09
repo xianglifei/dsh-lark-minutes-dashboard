@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Lark Minutes workbench",
+    "description": "Watches your Feishu Minutes, writes full meeting notes for each recording, renames untitled recordings, and keeps a Feishu doc index of minutes-to-notes links."
+  }
+}

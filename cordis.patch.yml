@@ -1,0 +1,11 @@
+# dsh-lark-minutes-dashboard —— 妙记工作台
+# 本地开发安装：
+#   dsh plugin --profile desktop add link:<本目录绝对路径>
+- insert:
+    - id: dsh-lark-minutes-dashboard
+      name: dsh-lark-minutes-dashboard
+      config:
+        pollIntervalSec: 60
+        listSize: 10
+        autoWriteTitle: true
+        createDocs: true
