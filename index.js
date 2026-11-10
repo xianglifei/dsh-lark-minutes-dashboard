@@ -43,6 +43,16 @@ const SEARCH_MAX_PAGES = 10
 // 发现和启动恢复，避免把对方在途的记录判成「中断失败」或互相覆盖本地库。
 const LOCK_TTL_MS = 10 * 60 * 1000
 
+// 面板靠「版本号 + 推送」知道库里变了：Host 每次真的改状态只推一个 rev，
+// 面板收到不同 rev 才去读 /list + /state。断线或老版本 Host 没有 /events 时，
+// 面板自己退回 60 秒兜底轮询（推送保时效，轮询保正确）。
+const SSE_HEARTBEAT_MS = 25000
+const SSE_MAX_CLIENTS = 16
+// 读 /state 时唯一要起 lark-cli 子进程的就是登录状态，缓存起来，别让面板每次
+// 轮询都付这个钱（原来 20 秒一次 = 每分钟 3 个 `lark-cli auth status`）。
+const AUTH_TTL_OK_MS = 60 * 1000
+const AUTH_TTL_FAIL_MS = 15 * 1000
+
 const DEFAULT_TITLE_PATTERNS = [
   /^新录音\s*\d*$/,
   /^未命名.*$/,
@@ -132,11 +142,13 @@ export function apply(ctx, config = {}) {
     index: { token: '', url: '' },
     // 索引文档的远端快照：rows 是「别的机器已经整理过」的权威来源，重建索引时
     // 会把本地还没采纳的远端行原样保留，避免两台机器互相删条目。
-    shared: { rows: {}, fetchedAt: 0, duplicates: [] },
+    shared: { rows: {}, fetchedAt: 0, duplicates: [], retired: [] },
     lastSync: 0,
     lastError: null,
     lastWarning: null,
     auth: null,
+    // 单调递增的版本号：面板据此判断「要不要重读」。只增不减，重启也接着涨。
+    rev: 0,
   }
   // 卸载标记：在途的 processRecord 看到它就不再往下写飞书，避免旧实例和新实例双写。
   let disposed = false
@@ -151,7 +163,7 @@ export function apply(ctx, config = {}) {
           ...store,
           ...parsed,
           index: { token: '', url: '', ...(parsed.index ?? {}) },
-          shared: { rows: {}, fetchedAt: 0, duplicates: [], ...(parsed.shared ?? {}) },
+          shared: { rows: {}, fetchedAt: 0, duplicates: [], retired: [], ...(parsed.shared ?? {}) },
         }
       }
     } catch (error) {
@@ -243,6 +255,74 @@ export function apply(ctx, config = {}) {
     clearTimeout(saveTimer)
     saveTimer = null
     writeStore()
+  }
+
+  // ------------------------------------------------------------ change feed
+  // 版本号只表达「库变了」，不表达「变了什么」——面板收到就去读一次，
+  // 省掉「变了什么」的协议设计，也天然兼容以后新增字段。
+
+  const sseClients = new Set()
+  let sseHeartbeat = null
+  let lastBroadcastRev = 0
+
+  function bumpRev() {
+    const current = Number(store.rev ?? 0)
+    store.rev = Math.max(current, lastBroadcastRev) + 1
+    lastBroadcastRev = store.rev
+    return store.rev
+  }
+
+  function sseSend(res, event, data) {
+    if (res.writableEnded || res.destroyed) throw new Error('已断开')
+    res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`)
+  }
+
+  /** 有实质变化时调用：推进版本号、通知所有面板、并落盘。 */
+  function broadcastRev(reason) {
+    if (disposed) return 0
+    const rev = bumpRev()
+    for (const res of sseClients) {
+      try {
+        sseSend(res, 'rev', { rev, reason })
+      } catch {
+        sseClients.delete(res)
+      }
+    }
+    saveStore()
+    return rev
+  }
+
+  function ensureSseHeartbeat() {
+    if (sseHeartbeat) return
+    sseHeartbeat = setInterval(() => {
+      for (const res of sseClients) {
+        try {
+          // SSE 注释行：让中间的代理/浏览器别把长连接当空闲掐掉
+          res.write(': keep-alive\n\n')
+        } catch {
+          sseClients.delete(res)
+        }
+      }
+      if (!sseClients.size && sseHeartbeat) {
+        clearInterval(sseHeartbeat)
+        sseHeartbeat = null
+      }
+    }, SSE_HEARTBEAT_MS)
+    // 心跳不该拖住宿主进程退出
+    if (typeof sseHeartbeat.unref === 'function') sseHeartbeat.unref()
+  }
+
+  function closeSseClients() {
+    for (const res of sseClients) {
+      try {
+        res.end()
+      } catch {}
+    }
+    sseClients.clear()
+    if (sseHeartbeat) {
+      clearInterval(sseHeartbeat)
+      sseHeartbeat = null
+    }
   }
 
   /**
@@ -374,23 +454,52 @@ export function apply(ctx, config = {}) {
     })
   }
 
-  async function readAuth() {
-    const result = await runCli(['auth', 'status', '--json'], 20000)
-    if (!result.ok) {
-      return { ok: false, message: result.error?.message ?? '无法读取登录状态' }
-    }
-    // auth status 的 JSON 没有 data 包装（identities 在顶层），旧的 search 接口
-    // 却是 {ok, identity, data:{...}}；两种形状都兼容一下。
-    const root = result.data ?? {}
-    const identity = (root.identities ?? root.data?.identities)?.user ?? {}
-    const available = Boolean(identity.available)
-    return {
-      ok: available,
-      name: identity.userName ?? '',
-      openId: identity.openId ?? '',
-      expiresAt: identity.expiresAt ?? '',
-      message: available ? '' : (identity.message ?? '未登录'),
-    }
+  // 登录状态缓存：成功 60 秒、失败 15 秒（失败要早点重试，否则刚登录完还得等）。
+  // 这样 /state 在绝大多数情况下是纯内存返回，不再每次起一个 lark-cli 子进程。
+  let authCache = { at: 0, value: null, ok: false }
+  let authInFlight = null
+
+  function authSignature(auth) {
+    if (!auth) return ''
+    return `${auth.ok ? 1 : 0}|${auth.name ?? ''}|${auth.expiresAt ?? ''}|${auth.message ?? ''}`
+  }
+
+  async function readAuth({ force = false } = {}) {
+    const ttl = authCache.ok ? AUTH_TTL_OK_MS : AUTH_TTL_FAIL_MS
+    if (!force && authCache.value && now() - authCache.at < ttl) return authCache.value
+    // /list 和 /state 是并行发的，缓存刚过期的瞬间可能同时进来两次；
+    // 合并成一次子进程调用，别为了同一个结果起两遍 lark-cli。
+    if (authInFlight) return authInFlight
+
+    authInFlight = (async () => {
+      const result = await runCli(['auth', 'status', '--json'], 20000)
+      const value = !result.ok
+        ? { ok: false, message: result.error?.message ?? '无法读取登录状态' }
+        : (() => {
+          // auth status 的 JSON 没有 data 包装（identities 在顶层），旧的 search 接口
+          // 却是 {ok, identity, data:{...}}；两种形状都兼容一下。
+          const root = result.data ?? {}
+          const identity = (root.identities ?? root.data?.identities)?.user ?? {}
+          const available = Boolean(identity.available)
+          return {
+            ok: available,
+            name: identity.userName ?? '',
+            openId: identity.openId ?? '',
+            expiresAt: identity.expiresAt ?? '',
+            message: available ? '' : (identity.message ?? '未登录'),
+          }
+        })()
+
+      const before = authSignature(authCache.value)
+      authCache = { at: now(), value, ok: value.ok }
+      // 登录状态变了（掉线 / 重新登录）要立刻让面板知道，否则红色提示要等下一轮。
+      if (before !== authSignature(value)) broadcastRev('auth')
+      return value
+    })().finally(() => {
+      authInFlight = null
+    })
+
+    return authInFlight
   }
 
   // ---------------------------------------------------------------- discovery
@@ -474,7 +583,10 @@ export function apply(ctx, config = {}) {
     // 非持锁实例不做发现，只同步磁盘状态（另一台 DSH 实例在写）。
     const wasOwner = lockHeld
     if (!acquireLock()) {
+      const before = `${store.lastSync}|${Object.keys(store.items).length}`
       loadStore()
+      // 跟着别人的写入走：磁盘变了也要通知本进程的面板，否则它会一直停在旧数据。
+      if (`${store.lastSync}|${Object.keys(store.items).length}` !== before) broadcastRev('follower')
       return { ok: true, added: 0, shared: true, total: Object.keys(store.items).length }
     }
     if (!wasOwner) {
@@ -489,7 +601,7 @@ export function apply(ctx, config = {}) {
 
     if (!search.ok) {
       store.lastError = search.error?.message ?? '搜索失败'
-      saveStore()
+      broadcastRev('sync-error')
       return { ok: false, error: store.lastError, added: 0 }
     }
 
@@ -563,7 +675,9 @@ export function apply(ctx, config = {}) {
     const adopted = await refreshSharedIndex()
     if (disposed) return { ok: false, error: '插件已卸载', added: 0 }
 
-    saveStore()
+    // 每轮同步后都推一次：即使没有新妙记，lastSync 也变了，面板上的「几秒前」
+    // 要靠它归零。这正是「没有新增也要通知」的那类变化。
+    broadcastRev('sync')
     return { ok: true, added, adopted, total: Object.keys(store.items).length }
   }
 
@@ -628,34 +742,130 @@ export function apply(ctx, config = {}) {
     return rows
   }
 
-  // 云端可能已经有多份索引文档（每台机器最初各建一份）。挑一份当主文档，
-  // 其余的只读合并；不删除用户已有的文档。
-  async function findIndexDocs() {
+  // 索引文档靠「标题 + 云空间清单」两路找，不能只依赖全文搜索：
+  // - 带「 · 」的整串标题搜不到自己；新文档要过一阵才进搜索索引（实测 1 分钟仍为 0）；
+  // - 云空间根目录清单是即时的，刚建的文档立刻能看到。
+  // 先列根目录、再按关键词搜（覆盖被移进子文件夹的老文档），两路取并集。
+  const INDEX_TITLE_SEPARATORS = /[\s·・•—–\-_/|:：,，.。()（）[\]【】]+/g
+  // 写进索引正文的标识：确认「这份文档确实是本插件建的」，避免同名文档被覆盖
+  const INDEX_MARKER = '妙记工作台索引账本'
+
+  function escapeRegExp(text) {
+    return String(text ?? '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  }
+
+  function normalizeDocTitle(text) {
+    return String(text ?? '').replace(INDEX_TITLE_SEPARATORS, '')
+  }
+
+  function indexSearchQueries(title) {
+    const raw = String(title ?? '').trim()
+    const queries = []
+    const push = (value) => {
+      const query = String(value ?? '').trim()
+      if (query.length >= 2 && !queries.includes(query)) queries.push(query)
+    }
+    push(raw)
+    // 标题里最长的那一段一定出现在同名文档的标题里，用它做查询词最稳
+    const segments = raw.split(INDEX_TITLE_SEPARATORS)
+      .filter(Boolean)
+      .sort((a, b) => b.length - a.length)
+    for (const segment of segments.slice(0, 2)) push(segment)
+    return queries
+  }
+
+  // createTime 统一成毫秒；docs +search 与 drive files list 给的都是秒
+  function indexDoc(token, url, createTime, title) {
+    return {
+      token,
+      title: String(title ?? '').trim(),
+      // docs +search 给的 url 带 #doxcn… 锚点，存进本地库前去掉
+      url: String(url ?? '').replace(/#.*$/, ''),
+      createTime: Number(createTime ?? 0) * 1000,
+    }
+  }
+
+  /** 返回 null 表示这一路没跑通（区别于「跑通了但 0 条」）。 */
+  async function searchIndexDocs(wanted, errors) {
+    const docs = []
+    let ok = false
+    for (const query of indexSearchQueries(settings.indexTitle)) {
+      const result = await runCli([
+        'docs', '+search',
+        '--query', query,
+        '--page-size', '20',
+        '--format', 'json',
+      ], 40000)
+      if (disposed) return docs
+      if (!result.ok) {
+        errors.push(`搜索「${query}」失败：${result.error?.message ?? '未知错误'}`)
+        continue
+      }
+      ok = true
+      for (const resultItem of result.data?.data?.results ?? []) {
+        const meta = resultItem?.result_meta ?? {}
+        const title = String(resultItem?.title_highlighted ?? meta.title ?? '').replace(/<\/?h>/g, '')
+        if (normalizeDocTitle(title) !== wanted) continue
+        if (!meta.token) continue
+        docs.push(indexDoc(meta.token, meta.url, meta.create_time, title))
+      }
+    }
+    return ok ? docs : null
+  }
+
+  async function listIndexDocs(wanted, errors) {
     const result = await runCli([
-      'docs', '+search',
-      '--query', settings.indexTitle,
-      '--page-size', '20',
+      'drive', 'files', 'list',
+      '--page-size', '200',
       '--format', 'json',
     ], 40000)
-    if (!result.ok) return []
-    const data = result.data?.data ?? {}
+    if (!result.ok) {
+      errors.push(`读取云空间清单失败：${result.error?.message ?? '未知错误'}`)
+      return null
+    }
     const docs = []
-    for (const resultItem of data.results ?? []) {
-      const meta = resultItem?.result_meta ?? {}
-      const title = String(resultItem?.title_highlighted ?? meta.title ?? '').replace(/<\/?h>/g, '')
-      if (title !== settings.indexTitle) continue
-      if (!meta.token) continue
-      docs.push({
-        token: meta.token,
-        // docs +search 给的 url 带 #doxcn… 锚点，存进本地库前去掉
-        url: String(meta.url ?? '').replace(/#.*$/, ''),
-        createTime: Number(meta.create_time ?? 0) * 1000,
-      })
+    for (const file of result.data?.data?.files ?? []) {
+      if (String(file?.type ?? '') !== 'docx') continue
+      if (normalizeDocTitle(file?.name) !== wanted) continue
+      if (!file?.token) continue
+      docs.push(indexDoc(file.token, file.url, file.created_time, file.name))
     }
     return docs
   }
 
-  async function fetchIndexRows(docToken) {
+  /**
+   * 找云端所有索引文档。ok=false 表示两条发现通道都失败了，
+   * 这时不能据此认为「云端没有索引」，更不能顺手新建一份。
+   */
+  async function findIndexDocs() {
+    const wanted = normalizeDocTitle(settings.indexTitle)
+    if (!wanted) return { docs: [], ok: true }
+    const errors = []
+    const merged = new Map()
+    const collect = (docs) => {
+      for (const doc of docs ?? []) {
+        if (!doc?.token) continue
+        const existing = merged.get(doc.token)
+        if (!existing) {
+          merged.set(doc.token, { ...doc })
+          continue
+        }
+        if (!existing.url && doc.url) existing.url = doc.url
+        if (!existing.createTime && doc.createTime) existing.createTime = doc.createTime
+        if (!existing.title && doc.title) existing.title = doc.title
+      }
+    }
+    // 先列根目录（即时），再搜关键词（覆盖被移进子文件夹的老文档）
+    const listed = await listIndexDocs(wanted, errors)
+    collect(listed)
+    const searched = await searchIndexDocs(wanted, errors)
+    collect(searched)
+    const ok = listed !== null || searched !== null
+    if (!ok) console.warn('[lark-minutes] 查找索引文档失败：%s', errors.join('；'))
+    return { docs: [...merged.values()], ok }
+  }
+
+  async function fetchIndexDoc(docToken) {
     const result = await runCli([
       'docs', '+fetch',
       '--doc', docToken,
@@ -664,22 +874,82 @@ export function apply(ctx, config = {}) {
     ], 40000)
     if (!result.ok) return null
     const content = result.data?.data?.document?.content ?? ''
-    return parseIndexRows(content)
+    return { content, rows: parseIndexRows(content) }
   }
 
-  async function resolveIndexDoc() {
-    const docs = await findIndexDocs()
-    if (!docs.length) return { picked: null, duplicates: [] }
-    const current = docs.find((doc) => doc.token === store.index.token)
-    // 优先沿用本地已知的那份，否则用最早创建的（第一次安装的那台机器）
-    const picked = current ?? [...docs].sort((a, b) => a.createTime - b.createTime)[0]
-    const duplicates = docs.filter((doc) => doc.token !== picked.token)
-    if (duplicates.length && !store.shared.warnedDuplicates) {
-      store.shared.warnedDuplicates = true
-      console.warn('[lark-minutes] 发现多份索引文档，已选择主文档 %s，其余仅合并不删除：%s',
-        picked.token, duplicates.map((doc) => doc.token).join(', '))
+  /** 这份文档确实由本插件维护（标识、固定抬头或我们的表格都算）。 */
+  function isOurIndexDoc(doc) {
+    const content = String(doc?.content ?? '')
+    if (content.includes(INDEX_MARKER)) return true
+    if (content.includes('由「妙记工作台」自动维护')) return true
+    if (Array.isArray(doc?.rows) && doc.rows.length) return true
+    return new RegExp(`^#\\s+${escapeRegExp(settings.indexTitle)}\\s*$`, 'm').test(content)
+  }
+
+  function isRetiredIndexDoc(doc) {
+    if (/（历史副本）\s*$/.test(String(doc?.title ?? '').trim())) return true
+    return /^#\s+.*（历史副本）\s*$/m.test(String(doc?.content ?? ''))
+  }
+
+  // 只有真实的创建时间才对外暴露；未知（本地记住的 token）记 0，避免 /state 里出现巨大时间戳
+  function knownCreateTime(doc) {
+    const time = Number(doc?.createTime)
+    return Number.isFinite(time) && time > 0 && time < Number.MAX_SAFE_INTEGER ? time : 0
+  }
+
+  /** 索引正文（主文档与历史副本共用一套格式，避免两处漂移）。 */
+  function indexMarkdown(rows, options = {}) {
+    // 接口既接受数组也接受 token->row 的映射，避免调用方拿错形状把表写空
+    const list = Array.isArray(rows) ? rows : Object.values(rows ?? {})
+    const title = options.title ?? settings.indexTitle
+    const lines = [`# ${title}`, '']
+    if (options.banner) lines.push(`> ⚠️ ${options.banner}`, '')
+    lines.push(
+      `> 由「妙记工作台」自动维护${options.marker === false ? '' : ` · 索引标识 ${INDEX_MARKER}`} · 最后更新 ${toIsoSeconds(now())} · 共 ${list.length} 条`,
+      '',
+      '| 时间 | 标题 | 时长 | 妙记 | 纪要文档 |',
+      '|---|---|---|---|---|',
+    )
+    for (const row of list) {
+      const minutes = Math.max(1, Math.round((row.durationMs ?? 0) / 60000))
+      lines.push(`| ${escapeCell(toIsoSeconds(row.whenMs ?? 0))} | ${escapeCell(row.title ?? '')} | ${minutes}m | [妙记](${row.minutesUrl ?? ''}) | [纪要](${row.docUrl}) |`)
     }
-    return { picked, duplicates }
+    return lines.join('\n')
+  }
+
+  /**
+   * 把重复的索引文档收成「历史副本」：改名 + 写入合并时的快照。
+   * 不删除用户文档；改名失败也不影响数据，下次按正文抬头就能认出来跳过。
+   */
+  async function retireIndexDoc(doc, canonical, rows) {
+    if (!canonical || doc.token === canonical.token) return
+    if (isRetiredIndexDoc(doc)) return
+    if ((store.shared.retired ?? []).includes(doc.token)) return
+    const title = `${settings.indexTitle}（历史副本）`
+    const markdown = indexMarkdown(rows, {
+      title,
+      banner: `本文件已合并到主索引：${canonical.url || canonical.token}。主索引会自动更新，本文件不再写入，仅作历史快照。`,
+      marker: false,
+    })
+    try {
+      await overwriteDoc(doc.token, markdown)
+    } catch (error) {
+      console.warn('[lark-minutes] 合并重复索引文档失败 %s：%s', doc.token, error?.message ?? error)
+      return
+    }
+    const renamed = await runCli([
+      'drive', 'files', 'patch',
+      '--file-token', doc.token,
+      '--type', 'docx',
+      '--data', JSON.stringify({ new_title: title }),
+      '--format', 'json',
+    ], 30000)
+    if (!renamed.ok) {
+      console.warn('[lark-minutes] 重命名历史索引副本失败 %s：%s', doc.token, renamed.error?.message ?? '未知错误')
+    }
+    store.shared.retired = [...new Set([...(store.shared.retired ?? []), doc.token])]
+    store.shared.duplicates = (store.shared.duplicates ?? []).filter((token) => token !== doc.token)
+    saveStore()
   }
 
   /** 把索引行采纳进本地库：别的设备已经做过的，这里就不该再显示「未生成」。 */
@@ -771,53 +1041,121 @@ export function apply(ctx, config = {}) {
     const failedRecently = now() - Number(store.shared?.failedAt ?? 0) < 2 * 60 * 1000
     if ((fresh || failedRecently) && !options.force) return stats
 
-    const resolved = await resolveIndexDoc()
+    const found = await findIndexDocs()
     if (disposed) return stats
-    if (resolved.picked && (store.index.token !== resolved.picked.token || !store.index.url)) {
-      store.index = { token: resolved.picked.token, url: resolved.picked.url || store.index.url }
-      saveStore()
-    }
-    store.shared.duplicates = resolved.duplicates.map((doc) => doc.token)
+    store.shared.discoveryOk = found.ok
 
-    const sources = [resolved.picked, ...resolved.duplicates].filter(Boolean)
-    if (store.index.token && !sources.some((doc) => doc.token === store.index.token)) {
-      sources.unshift({ token: store.index.token, url: store.index.url })
+    // 本地记住的 token 也算候选：搜索/清单漏召回时仍能读到它。
+    // 但它的创建时间未知，排序时放最后，避免抢主文档。
+    const candidates = [...found.docs]
+    if (store.index.token && !candidates.some((doc) => doc.token === store.index.token)) {
+      candidates.push({
+        token: store.index.token,
+        url: store.index.url,
+        title: '',
+        createTime: knownCreateTime(store.index) || Number.MAX_SAFE_INTEGER,
+        remembered: true,
+      })
     }
 
-    const rows = {}
-    for (const source of sources) {
-      const parsed = await fetchIndexRows(source.token)
+    const docs = []
+    for (const candidate of candidates) {
+      const fetched = await fetchIndexDoc(candidate.token)
       if (disposed) return stats
-      if (!parsed) continue
+      if (!fetched) continue
+      if (!isOurIndexDoc({ ...candidate, ...fetched })) {
+        console.warn('[lark-minutes] 跳过同名但不是本插件维护的文档 %s', candidate.token)
+        continue
+      }
+      docs.push({ ...candidate, ...fetched })
       stats.fetched += 1
-      for (const row of parsed) {
-        // 多份索引里同一条妙记以先读到的（主文档优先）为准
-        if (!rows[row.token]) rows[row.token] = row
+    }
+
+    // 主文档必须在每台机器上算出同一个：创建时间最早的那份，同一秒按 token 排。
+    // 这样不会因为「本地记住的是另一份」而各写各的。
+    docs.sort((a, b) => (a.createTime || Number.MAX_SAFE_INTEGER) - (b.createTime || Number.MAX_SAFE_INTEGER)
+      || a.token.localeCompare(b.token))
+    // 历史副本永远不当主文档（除非云端只剩副本，那时只能退而求其次）
+    const active = docs.filter((doc) => !isRetiredIndexDoc(doc))
+    const canonical = active[0] ?? docs[0] ?? null
+    const duplicates = docs.filter((doc) => doc.token !== canonical?.token)
+
+    // 发现结果变化时才打日志，避免每 5 分钟刷屏
+    const signature = docs.map((doc) => doc.token).sort().join(',')
+    if (signature !== store.shared.discoverySignature) {
+      store.shared.discoverySignature = signature
+      if (canonical) {
+        console.log('[lark-minutes] 索引文档发现 %d 份（主 %s，其余 %d 份）',
+          docs.length, canonical.token, duplicates.length)
+      } else {
+        console.warn('[lark-minutes] 云端没有找到索引文档（云空间清单与全文搜索都没有），本机将新建一份')
       }
     }
 
-    if (!stats.fetched) {
-      // 云端确实还没有索引文档：记下时间，别每个轮询周期都去搜一次
-      if (!sources.length) {
-        store.shared = { rows: {}, fetchedAt: now(), duplicates: [], warnedDuplicates: store.shared.warnedDuplicates }
+    if (!docs.length) {
+      // 云空间清单/搜索都跑通、确实 0 份：记下时间，别每个轮询周期都去搜
+      if (!candidates.length && found.ok) {
+        store.shared = {
+          ...store.shared,
+          rows: {},
+          fetchedAt: now(),
+          duplicates: [],
+          documents: [],
+        }
         saveStore()
-      }
-      // 有索引却一条都没读到（接口/权限问题）：不刷新 TTL，退避后再试
-      if (sources.length) {
+      } else {
+        // 有候选却一份都读不到（权限/网络/同名但不是我们的）：退避后再试，
+        // 不能据此下结论去新建一份
         store.shared = { ...store.shared, failedAt: now() }
         saveStore()
       }
       return stats
     }
-    store.shared = {
-      rows,
-      fetchedAt: now(),
-      failedAt: 0,
-      duplicates: store.shared.duplicates,
-      warnedDuplicates: store.shared.warnedDuplicates,
+
+    if (store.index.token !== canonical.token
+      || store.index.url !== (canonical.url || store.index.url)
+      || knownCreateTime(store.index) !== knownCreateTime(canonical)) {
+      store.index = {
+        token: canonical.token,
+        url: canonical.url || (store.index.token === canonical.token ? store.index.url : ''),
+        createTime: knownCreateTime(canonical),
+      }
+      saveStore()
     }
+    store.shared.duplicates = duplicates.map((doc) => doc.token)
+    // 留一份发现结果：下次排查「为什么没采纳」时能看出是没找到文档，还是文档里没行
+    store.shared.documents = docs.map((doc) => ({
+      token: doc.token,
+      url: doc.url,
+      createTime: knownCreateTime(doc),
+    }))
+
+    const rows = {}
+    for (const doc of docs) {
+      for (const row of doc.rows) {
+        // 多份索引里同一条妙记以先读到的（主文档优先）为准
+        if (!rows[row.token]) rows[row.token] = row
+      }
+    }
+    store.shared = { ...store.shared, rows, fetchedAt: now(), failedAt: 0 }
     for (const row of Object.values(rows)) adoptIndexRow(row, stats)
     saveStore()
+
+    if (!options.skipRebuild && (stats.adopted || stats.added)) {
+      // 采纳完就补全主索引：否则面板已经显示「已整理」，用户点开「索引」
+      // 却看不到这几条，又得怀疑同步没跑。
+      try {
+        await rebuildIndex()
+      } catch (error) {
+        console.warn('[lark-minutes] 采纳远端记录后更新索引失败：', error?.message ?? error)
+      }
+    }
+
+    // 合并完把重复索引文档收成「历史副本」：以后任何设备都不会再把它
+    // 当成第二份主索引；不删除用户文档。
+    for (const doc of duplicates) {
+      await retireIndexDoc(doc, canonical, Object.values(rows))
+    }
     return stats
   }
 
@@ -944,15 +1282,30 @@ export function apply(ctx, config = {}) {
     return result.data?.data?.document ?? {}
   }
 
-  async function rebuildIndex() {
+  // 串行化索引重建：采纳远端记录后的自动重建和「生成纪要」后的重建可能同时
+  // 在跑，并发覆盖会让后完成的旧快照把新行写没。排队后每次都用最新快照。
+  let rebuildQueue = Promise.resolve()
+
+  function rebuildIndex() {
+    const run = rebuildQueue.then(() => doRebuildIndex())
+    rebuildQueue = run.then(() => {}, () => {})
+    return run
+  }
+
+  async function doRebuildIndex() {
     if (!store.index.token) {
       // 先看云端有没有别的机器建过的索引文档，避免每台机器各建一份
-      await refreshSharedIndex({ force: true })
+      // skipRebuild：本函数接下来自己就会重建，别让采纳路径反过来排队等自己
+      await refreshSharedIndex({ force: true, skipRebuild: true })
       if (disposed) return
     }
     if (!store.index.token) {
-      const created = await createDoc(settings.indexTitle, '# 妙记工作台 · 索引\n')
-      store.index = { token: created.token, url: created.url }
+      // 发现通道全挂时绝不新建：否则第三台设备会在搜索抖动时又造一份索引
+      if (store.shared.discoveryOk === false) {
+        throw new Error('暂时读不到云端索引（云空间清单和全文搜索都失败），为避免重复创建索引，请稍后重试')
+      }
+      const created = await createDoc(settings.indexTitle, indexMarkdown([]))
+      store.index = { token: created.token, url: created.url, createTime: now() }
     }
     const rows = listRecords()
       .filter((record) => record.delivery?.docUrl)
@@ -971,22 +1324,10 @@ export function apply(ctx, config = {}) {
       rows.push(row)
     }
     rows.sort((a, b) => (b.whenMs ?? 0) - (a.whenMs ?? 0))
-    const lines = [
-      '# 妙记工作台 · 索引',
-      '',
-      `> 由「妙记工作台」自动维护 · 最后更新 ${toIsoSeconds(now())} · 共 ${rows.length} 条`,
-      '',
-      '| 时间 | 标题 | 时长 | 妙记 | 纪要文档 |',
-      '|---|---|---|---|---|',
-    ]
-    for (const row of rows) {
-      const minutes = Math.max(1, Math.round((row.durationMs ?? 0) / 60000))
-      lines.push(`| ${escapeCell(toIsoSeconds(row.whenMs ?? 0))} | ${escapeCell(row.title ?? '')} | ${minutes}m | [妙记](${row.minutesUrl ?? ''}) | [纪要](${row.docUrl}) |`)
-    }
     mkdirSync(workDir, { recursive: true })
     const dir = await mkdtemp(join(workDir, 'index-'))
     const file = join(dir, 'index.md')
-    writeFileSync(file, lines.join('\n'))
+    writeFileSync(file, indexMarkdown(rows))
     const result = await runCli([
       'docs', '+update',
       '--doc', store.index.token,
@@ -1181,29 +1522,42 @@ export function apply(ctx, config = {}) {
     ].join('\n')
   }
 
+  // 按需拉逐字稿的并发保护：连点两次、或「发送到对话」和面板同时要，只跑一次 CLI。
+  const transcriptJobs = new Map()
+
   /** 拿逐字稿：本地有就读，没有就现场用 lark-cli 拉一次并入库。 */
   async function ensureTranscript(record) {
     if (record.transcript?.file && existsSync(record.transcript.file)) {
       return readFileSync(record.transcript.file, 'utf8')
     }
-    const detail = await runCli([
-      'minutes', '+detail',
-      '--minute-tokens', record.token,
-      '--transcript',
-      '--output-dir', transcriptDirArg,
-      '--overwrite',
-      '--format', 'json',
-    ], 120000)
-    if (!detail.ok) throw new Error(detail.error?.message ?? '读取逐字稿失败')
-    const entry = detail.data?.data?.minutes?.[0] ?? {}
-    const reported = entry?.artifacts?.transcript_file
-    const file = reported ? (reported.startsWith('/') ? reported : resolvePath(workDir, reported)) : ''
-    if (!file || !existsSync(file)) throw new Error('这条妙记没有可用的逐字稿')
-    const text = readFileSync(file, 'utf8')
-    record.transcript = { file, chars: text.length, speakers: extractSpeakers(text) }
-    record.updatedAt = now()
-    saveStore()
-    return text
+    if (transcriptJobs.has(record.token)) return transcriptJobs.get(record.token)
+
+    const job = (async () => {
+      const detail = await runCli([
+        'minutes', '+detail',
+        '--minute-tokens', record.token,
+        '--transcript',
+        '--output-dir', transcriptDirArg,
+        '--overwrite',
+        '--format', 'json',
+      ], 120000)
+      if (!detail.ok) throw new Error(detail.error?.message ?? '读取逐字稿失败')
+      const entry = detail.data?.data?.minutes?.[0] ?? {}
+      const reported = entry?.artifacts?.transcript_file
+      const file = reported ? (reported.startsWith('/') ? reported : resolvePath(workDir, reported)) : ''
+      if (!file || !existsSync(file)) throw new Error('这条妙记没有可用的逐字稿')
+      const text = readFileSync(file, 'utf8')
+      record.transcript = { file, chars: text.length, speakers: extractSpeakers(text) }
+      record.updatedAt = now()
+      // 在这里推而不是在路由里推：并发调用共享同一个 job，也只有真正拉到的那次算变化
+      broadcastRev('transcript')
+      return text
+    })().finally(() => {
+      transcriptJobs.delete(record.token)
+    })
+
+    transcriptJobs.set(record.token, job)
+    return job
   }
 
   /** 导出两份 md（总结 + 逐字稿），返回客户端上传附件所需的文件名与 prompt。 */
@@ -1315,7 +1669,7 @@ export function apply(ctx, config = {}) {
 
     running.set(token, true)
     record.processing = { ...record.processing, stage: 'fetching', attempts: (record.processing?.attempts ?? 0) + 1, lastError: null }
-    saveStore()
+    broadcastRev('stage:fetching')
 
     try {
       const detail = await runCli([
@@ -1340,12 +1694,12 @@ export function apply(ctx, config = {}) {
 
       if (transcriptText.replace(/\s/g, '').length < settings.minTranscriptChars) {
         record.processing = { ...record.processing, stage: 'skipped', lastError: '逐字稿太短，已跳过' }
-        saveStore()
+        broadcastRev('stage:skipped')
         return { ok: true, skipped: true }
       }
 
       record.processing = { ...record.processing, stage: 'summarizing' }
-      saveStore()
+      broadcastRev('stage:summarizing')
 
       const generated = await summarize(transcriptText)
       if (disposed) return { ok: false, error: '插件已卸载，本次结果未写入' }
@@ -1357,7 +1711,7 @@ export function apply(ctx, config = {}) {
         topics: Array.isArray(generated.topics) ? generated.topics : [],
       }
       record.processing = { ...record.processing, stage: 'delivering', lastError: null, model: currentModel().model }
-      saveStore()
+      broadcastRev('stage:delivering')
 
       if (settings.createDocs !== false) {
         const docTitle = `${record.generated.title}${settings.docTitleSuffix}`
@@ -1397,13 +1751,13 @@ export function apply(ctx, config = {}) {
 
       record.processing = { ...record.processing, stage: 'ready', lastError: null }
       record.updatedAt = now()
-      saveStore()
+      broadcastRev('stage:ready')
       return { ok: true, record: publicRecord(record) }
     } catch (error) {
       if (!disposed) {
         record.processing = { ...record.processing, stage: 'failed', lastError: error?.message ?? String(error) }
         record.updatedAt = now()
-        saveStore()
+        broadcastRev('stage:failed')
       }
       return { ok: false, error: error?.message ?? String(error) }
     } finally {
@@ -1480,11 +1834,43 @@ export function apply(ctx, config = {}) {
           saveStore()
           return sendJson(res, 200, { ok: true })
         }
+        if (req.method === 'GET' && path === '/lark-minutes/events') {
+          // 变化推送：只发版本号，不发数据。面板收到不同 rev 才去读 /list + /state，
+          // 这样「有没有变化」这件事由 Host 决定，面板不需要定时问。
+          if (sseClients.size >= SSE_MAX_CLIENTS) {
+            return sendJson(res, 429, { ok: false, error: '订阅的连接太多了' })
+          }
+          res.writeHead(200, {
+            'content-type': 'text/event-stream; charset=utf-8',
+            'cache-control': 'no-cache, no-transform',
+            connection: 'keep-alive',
+            'x-accel-buffering': 'no',
+          })
+          // 断线由浏览器自己重连（3 秒）；面板另有 60 秒兜底轮询防丢事件。
+          res.write('retry: 3000\n\n')
+          sseClients.add(res)
+          ensureSseHeartbeat()
+          sseSend(res, 'rev', { rev: store.rev ?? 0, reason: 'hello' })
+          const drop = () => {
+            sseClients.delete(res)
+            try {
+              res.end()
+            } catch {}
+          }
+          // close/error 都要接住：客户端拔网线后继续 write 会在响应流上发 error
+          // 事件，没人监听就会把宿主进程带崩。
+          req.on('close', drop)
+          req.on('error', drop)
+          res.on('close', drop)
+          res.on('error', drop)
+          return
+        }
         if (req.method === 'GET' && path === '/lark-minutes/state') {
           const auth = await readAuth()
           store.auth = auth
           return sendJson(res, 200, {
             ok: true,
+            rev: store.rev ?? 0,
             auth,
             lastSync: store.lastSync,
             lastError: store.lastError,
@@ -1494,6 +1880,9 @@ export function apply(ctx, config = {}) {
               fetchedAt: store.shared?.fetchedAt ?? 0,
               rows: Object.keys(store.shared?.rows ?? {}).length,
               duplicates: store.shared?.duplicates ?? [],
+              retired: store.shared?.retired ?? [],
+              documents: store.shared?.documents ?? [],
+              discoveryOk: store.shared?.discoveryOk ?? null,
             },
             client: store.stats ?? {},
             searchWindowDays: Math.max(1, Math.floor(Number(settings.searchWindowDays) || 7)),
@@ -1508,6 +1897,7 @@ export function apply(ctx, config = {}) {
           const records = all.slice(0, cap).map(publicRecord)
           return sendJson(res, 200, {
             ok: true,
+            rev: store.rev ?? 0,
             items: records,
             total: all.length,
             counts: stageCounts(all),
@@ -1538,6 +1928,25 @@ export function apply(ctx, config = {}) {
             updatedAt: record.updatedAt ?? 0,
             hydrateError: record.delivery?.hydrateError ?? null,
           })
+        }
+        if (req.method === 'POST' && path === '/lark-minutes/transcript') {
+          // 按需拉逐字稿：只看不整理时用，别为了看一眼逐字稿去点「重新生成」
+          // （那会白跑一次 LLM 并覆盖已有纪要文档）。
+          const body = await readBody(req)
+          const token = typeof body.token === 'string' ? body.token : ''
+          if (!token) return sendJson(res, 400, { ok: false, error: '缺少 token' })
+          if (!Object.hasOwn(store.items, token)) return sendJson(res, 404, { ok: false, error: '找不到这条妙记' })
+          try {
+            const text = await ensureTranscript(store.items[token])
+            if (disposed) return sendJson(res, 503, { ok: false, error: '插件已卸载' })
+            return sendJson(res, 200, {
+              ok: true,
+              transcript: text.slice(0, 200000),
+              chars: store.items[token].transcript?.chars ?? text.length,
+            })
+          } catch (error) {
+            return sendJson(res, 200, { ok: false, error: error?.message ?? String(error) })
+          }
         }
         if (req.method === 'POST' && path === '/lark-minutes/sync') {
           const result = await syncOnce()
@@ -1650,7 +2059,7 @@ export function apply(ctx, config = {}) {
         await syncOnce()
       } catch (error) {
         store.lastError = error?.message ?? String(error)
-        saveStore()
+        broadcastRev('sync-throw')
       }
       if (!stopped) timer = setTimeout(tick, Math.max(15, Number(settings.pollIntervalSec) || 60) * 1000)
     }
@@ -1659,6 +2068,7 @@ export function apply(ctx, config = {}) {
       stopped = true
       disposed = true
       clearTimeout(timer)
+      closeSseClients()
       flushStore()
       releaseLock()
     }

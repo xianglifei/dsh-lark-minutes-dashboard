@@ -9,7 +9,7 @@ window.__ModuleLoader__.load({
 
     const API = '/lark-minutes'
     const FILTERS = [
-      { id: 'all', label: '最新' },
+      { id: 'all', label: '全部' },
       { id: 'pending', label: '待整理' },
       { id: 'ready', label: '已整理' },
       { id: 'failed', label: '失败' },
@@ -33,7 +33,6 @@ window.__ModuleLoader__.load({
 .lm-root {
   --lm-bg: var(--dsw-alias-bg-base, #ffffff);
   --lm-surface: var(--dsw-alias-bg-layer-2, #ffffff);
-  --lm-list-bg: var(--dsw-specific-sidebar-fill, #f9fafb);
   --lm-border: var(--dsw-alias-border-l2, rgba(0, 0, 0, .1));
   --lm-border-soft: var(--dsw-alias-border-l1, rgba(0, 0, 0, .04));
   --lm-text: var(--dsw-alias-label-primary, #0f1115);
@@ -48,8 +47,8 @@ window.__ModuleLoader__.load({
   --lm-ok: var(--dsw-alias-state-success-primary, #22c55e);
   --lm-warn: var(--dsw-alias-state-warn-primary, #f59e0b);
   --lm-err: var(--dsw-alias-state-error-primary, #ec1313);
-  --lm-ok-ink: color-mix(in srgb, var(--lm-ok) 68%, var(--lm-text));
-  --lm-warn-ink: color-mix(in srgb, var(--lm-warn) 70%, var(--lm-text));
+  --lm-ok-ink: color-mix(in srgb, var(--lm-ok) 55%, var(--lm-text));
+  --lm-warn-ink: color-mix(in srgb, var(--lm-warn) 55%, var(--lm-text));
   --lm-err-ink: color-mix(in srgb, var(--lm-err) 84%, var(--lm-text));
   --lm-shadow: var(--dsw-shadow-lv1, 0 1px 2px rgba(0, 0, 0, .05));
   --lm-shadow-pop: var(--dsw-elevation-prominent, 0 8px 28px rgba(0, 0, 0, .12));
@@ -126,7 +125,7 @@ window.__ModuleLoader__.load({
   color: var(--lm-text); font: inherit; font-size: 12px;
   padding: 0;
 }
-.lm-search input::placeholder { color: var(--lm-text-3); }
+.lm-search input::placeholder { color: var(--lm-text-2); }
 .lm-search input:focus, .lm-search input:focus-visible { outline: none; box-shadow: none; }
 .lm-search input::-webkit-search-cancel-button,
 .lm-search input::-webkit-search-decoration { -webkit-appearance: none; appearance: none; }
@@ -134,7 +133,7 @@ window.__ModuleLoader__.load({
   display: inline-flex; align-items: center; justify-content: center;
   width: 20px; height: 20px; margin-right: 4px; padding: 0;
   border: 0; border-radius: 5px; background: transparent;
-  color: var(--lm-caption); cursor: pointer; flex: none;
+  color: var(--lm-text-3); cursor: pointer; flex: none;
 }
 .lm-search-clear:hover { background: var(--lm-hover); color: var(--lm-text-2); }
 .lm-kbd {
@@ -142,7 +141,7 @@ window.__ModuleLoader__.load({
   height: 17px; padding: 0 4px;
   display: inline-flex; align-items: center;
   border: .5px solid var(--lm-border); border-radius: 4px;
-  color: var(--lm-caption); font-size: 10px; line-height: 1;
+  color: var(--lm-text-2); font-size: 11px; line-height: 1;
   font-family: var(--lm-mono);
 }
 .lm-search:focus-within .lm-kbd { display: none; }
@@ -208,7 +207,7 @@ window.__ModuleLoader__.load({
   display: inline-flex; align-items: center; gap: 5px;
   height: 28px; padding: 0 10px; flex: none;
   border: 0; border-radius: 7px;
-  background: transparent; color: var(--lm-text-3);
+  background: transparent; color: var(--lm-text-2);
   font-size: 12px; line-height: 1; cursor: pointer;
   transition: background .12s ease, color .12s ease;
 }
@@ -224,8 +223,8 @@ window.__ModuleLoader__.load({
   display: inline-flex; align-items: center; justify-content: center;
   border-radius: 999px;
   background: color-mix(in srgb, var(--lm-text) 6%, transparent);
-  color: var(--lm-text-3);
-  font-size: 10px; line-height: 1; font-weight: 400;
+  color: var(--lm-text-2);
+  font-size: 11px; line-height: 1; font-weight: 400;
   font-variant-numeric: tabular-nums;
 }
 .lm-tab[aria-selected="true"] .lm-tab-count {
@@ -235,19 +234,19 @@ window.__ModuleLoader__.load({
 .lm-tools-spacer { flex: 1; }
 .lm-tool-meta {
   display: inline-flex; align-items: center; gap: 5px;
-  font-size: 11px; line-height: 18px; color: var(--lm-caption);
+  font-size: 12px; line-height: 18px; color: var(--lm-text-2);
   white-space: nowrap; font-variant-numeric: tabular-nums;
 }
 /* 同步按钮：一个控件同时承担「动作 + 上次同步结果」 */
 .lm-sync { gap: 6px; padding: 0 8px; }
-.lm-sync-state { max-width: 168px; overflow: hidden; text-overflow: ellipsis; }
+.lm-sync-state { max-width: 168px; min-width: 64px; overflow: hidden; text-overflow: ellipsis; }
 .lm-sync-state[data-tone="err"] { color: var(--lm-err-ink); }
 .lm-sync-state[data-tone="warn"] { color: var(--lm-warn-ink); }
 .lm-sync-failed, .lm-sync-failed .lm-btn-label { color: var(--lm-err-ink); }
 /* 登录正常时不占位；只有登录失效才提示一句 */
 .lm-auth-warn {
   display: inline-flex; align-items: center; gap: 4px;
-  font-size: 11px; line-height: 18px; color: var(--lm-err-ink);
+  font-size: 12px; line-height: 18px; color: var(--lm-err-ink);
   white-space: nowrap;
 }
 
@@ -282,7 +281,7 @@ window.__ModuleLoader__.load({
 .lm-list-pane {
   width: 318px; flex: none; min-height: 0;
   display: flex; flex-direction: column;
-  background: var(--lm-list-bg);
+  background: var(--lm-bg);
   border-right: .5px solid var(--lm-border);
 }
 .lm-list-scroll .lm-center { min-height: 100%; }
@@ -309,10 +308,10 @@ window.__ModuleLoader__.load({
 
 .lm-row {
   position: relative;
-  display: grid; grid-template-columns: auto 1fr; column-gap: 6px; row-gap: 4px;
-  align-items: center; width: 100%;
-  margin: 0 0 3px;
-  padding: 12px 10px 12px 12px;
+  display: flex; align-items: center; gap: 9px;
+  width: 100%; height: 44px;
+  margin: 0 0 2px;
+  padding: 0 10px 0 12px;
   border: .5px solid transparent; border-radius: 9px;
   background: transparent; text-align: left; cursor: pointer;
   transition: background .12s ease, box-shadow .12s ease, border-color .12s ease;
@@ -330,42 +329,45 @@ window.__ModuleLoader__.load({
 .lm-row[aria-current="true"]::before {
   content: '';
   position: absolute; left: 0; top: 50%;
-  width: 2.5px; height: 20px; margin-top: -10px;
+  width: 2.5px; height: 18px; margin-top: -9px;
   border-radius: 0 2px 2px 0;
   background: var(--lm-brand);
 }
-.lm-row-flag { grid-column: 1; grid-row: 1; display: inline-flex; }
-.lm-row-meta { grid-column: 2; grid-row: 1; display: flex; align-items: center; gap: 6px; min-width: 0; height: 17px; }
-.lm-row-sep { flex: none; color: var(--lm-caption); font-size: 10px; line-height: 17px; }
+.lm-row-flag {
+  flex: none; width: 13px; height: 13px;
+  display: inline-flex; align-items: center; justify-content: center;
+  color: var(--lm-text-3);
+}
 .lm-row-flag[data-tone="ok"] { color: var(--lm-ok-ink); }
 .lm-row-flag[data-tone="warn"] { color: var(--lm-warn-ink); }
 .lm-row-flag[data-tone="err"] { color: var(--lm-err-ink); }
-.lm-row-flag[data-tone="muted"] { color: var(--lm-caption); }
+.lm-row-flag[data-tone="muted"] { color: var(--lm-text-3); }
 .lm-row-title {
-  grid-column: 2; grid-row: 2; min-width: 0;
-  font-size: 14px; line-height: 21px; font-weight: 500;
+  flex: 1; min-width: 0;
+  font-size: 14px; line-height: 20px; font-weight: 500;
   color: var(--lm-text); letter-spacing: -.005em;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.lm-row-flag { flex: none; display: inline-flex; color: var(--lm-text-3); }
 .lm-row-time {
-  min-width: 0; font-size: 11px; line-height: 17px;
-  color: var(--lm-text-3); font-variant-numeric: tabular-nums;
-  letter-spacing: -.01em; white-space: nowrap;
-  overflow: hidden; text-overflow: ellipsis;
-}
-.lm-row-dur {
   flex: none;
-  font-size: 11px; line-height: 17px;
-  color: var(--lm-text-3); font-variant-numeric: tabular-nums;
-  white-space: nowrap;
+  font-size: 12px; line-height: 17px;
+  color: var(--lm-text-2); font-variant-numeric: tabular-nums;
+  letter-spacing: -.01em; white-space: nowrap;
 }
+.lm-ghead {
+  position: sticky; top: 0; z-index: 2;
+  display: flex; align-items: center; gap: 7px;
+  height: 22px; padding: 0 4px; margin-bottom: 2px;
+  font-size: 11px; font-weight: 600; letter-spacing: .01em;
+  color: var(--lm-text-2); background: var(--lm-bg);
+}
+.lm-ghead::after { content: ''; flex: 1; height: .5px; background: var(--lm-border); }
 .lm-list-foot {
   flex: none; padding: 8px 14px;
   border-top: .5px solid var(--lm-border-soft);
   display: flex; align-items: center; gap: 6px;
-  font-size: 11px; line-height: 16px; color: var(--lm-text-3);
-  background: var(--lm-list-bg);
+  font-size: 12px; line-height: 16px; color: var(--lm-text-2);
+  background: var(--lm-bg);
 }
 
 /* ---------------------------------------------------------------- skeletons */
@@ -396,21 +398,21 @@ window.__ModuleLoader__.load({
   color: var(--lm-text-3);
 }
 .lm-empty-title { font-size: 14px; line-height: 22px; font-weight: 600; letter-spacing: -.01em; }
-.lm-empty-desc { margin-top: 5px; font-size: 12px; line-height: 19px; color: var(--lm-text-3); }
+.lm-empty-desc { margin-top: 5px; font-size: 12px; line-height: 19px; color: var(--lm-text-2); }
 .lm-empty-actions { margin-top: 15px; display: flex; align-items: center; justify-content: center; gap: 8px; }
 .lm-empty-steps {
   margin: 18px auto 0; padding-top: 14px;
   border-top: .5px solid var(--lm-border-soft);
   display: flex; align-items: center; justify-content: center; gap: 7px;
-  font-size: 10.5px; color: var(--lm-caption); white-space: nowrap;
+  font-size: 11px; color: var(--lm-text-2); white-space: nowrap;
 }
-.lm-empty-steps svg { color: var(--lm-caption); }
+.lm-empty-steps svg { color: var(--lm-text-3); }
 
 /* ---------------------------------------------------------------- detail */
 .lm-detail { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; background: var(--lm-bg); }
 .lm-detail-head {
   flex: none;
-  padding: 14px 0 11px;
+  padding: 12px 0 10px;
   border-bottom: .5px solid var(--lm-border-soft);
   background: var(--lm-bg);
 }
@@ -429,16 +431,16 @@ window.__ModuleLoader__.load({
 .lm-actions { display: flex; align-items: center; gap: 4px; flex: none; }
 .lm-detail-meta {
   display: flex; align-items: center; flex-wrap: wrap;
-  gap: 4px 8px; margin-top: 6px;
-  font-size: 12px; line-height: 19px; color: var(--lm-text-3);
+  gap: 4px 7px; margin-top: 5px;
+  font-size: 12px; line-height: 19px; color: var(--lm-text-2);
 }
 .lm-meta-item { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
-.lm-meta-item svg { color: var(--lm-caption); }
+.lm-meta-item svg { color: var(--lm-text-3); }
 .lm-sep { width: 2px; height: 2px; border-radius: 50%; background: var(--lm-caption); flex: none; }
 .lm-pill {
   display: inline-flex; align-items: center; gap: 4px;
   height: 18px; padding: 0 7px; border-radius: 999px;
-  font-size: 10.5px; line-height: 1; font-weight: 500;
+  font-size: 11px; line-height: 1; font-weight: 500;
   white-space: nowrap;
 }
 .lm-pill[data-tone="ok"] { background: color-mix(in srgb, var(--lm-ok) 13%, transparent); color: var(--lm-ok-ink); }
@@ -447,14 +449,19 @@ window.__ModuleLoader__.load({
 .lm-pill[data-tone="muted"] { background: color-mix(in srgb, var(--lm-text) 6%, transparent); color: var(--lm-text-2); }
 .lm-pill-dot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; flex: none; }
 .lm-pill[data-live="true"] .lm-pill-dot { animation: lm-pulse 1.6s ease-in-out infinite; }
-.lm-delivery {
-  display: flex; align-items: center; flex-wrap: wrap;
-  gap: 4px 11px; margin-top: 8px;
-  font-size: 11px; line-height: 17px; color: var(--lm-text-3);
+.lm-deliv {
+  display: inline-flex; align-items: center; gap: 3px;
+  height: 19px; padding: 0 7px; border-radius: 5px;
+  background: color-mix(in srgb, var(--lm-ok) 10%, transparent);
+  color: var(--lm-ok-ink);
+  font-size: 11px; line-height: 1; font-weight: 500;
+  white-space: nowrap; cursor: help;
 }
-.lm-del { display: inline-flex; align-items: center; gap: 3px; white-space: nowrap; }
-.lm-del svg { color: var(--lm-ok-ink); }
-.lm-del[data-tone="muted"] svg { color: var(--lm-caption); }
+.lm-deliv[data-tone="muted"] {
+  background: color-mix(in srgb, var(--lm-text) 6%, transparent);
+  color: var(--lm-text-2);
+}
+.lm-deliv svg { flex: none; }
 
 .lm-detail-scroll { flex: 1; min-height: 0; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--dsw-alias-scrollbar-bg-l1, rgba(0,0,0,.16)) transparent; }
 .lm-detail-inner {
@@ -476,13 +483,13 @@ window.__ModuleLoader__.load({
   width: 2px; border-radius: 0 2px 2px 0; background: var(--lm-brand);
 }
 .lm-quote-label {
-  font-size: 11px; line-height: 15px; font-weight: 500;
-  letter-spacing: .06em; color: var(--lm-text-3);
+  font-size: 12px; line-height: 15px; font-weight: 500;
+  letter-spacing: .06em; color: var(--lm-text-2);
   margin-bottom: 3px;
 }
-.lm-quote-text { font-size: 14.5px; line-height: 1.72; color: var(--lm-text); }
+.lm-quote-text { font-size: 15px; line-height: 1.72; color: var(--lm-text); }
 
-.lm-md { margin-top: 6px; font-size: 14px; line-height: 1.78; color: var(--lm-text); }
+.lm-md { margin-top: 6px; font-size: 15px; line-height: 1.78; color: var(--lm-text); }
 .lm-md p { margin: 8px 0; }
 .lm-md h2 {
   display: flex; align-items: center; gap: 10px;
@@ -491,8 +498,8 @@ window.__ModuleLoader__.load({
   letter-spacing: -.005em; color: var(--lm-text);
 }
 .lm-md h2::after { content: ''; flex: 1; height: .5px; background: var(--lm-border); }
-.lm-md h3 { margin: 18px 0 6px; font-size: 14px; line-height: 22px; font-weight: 600; color: var(--lm-text); }
-.lm-md h1 { margin: 20px 0 10px; font-size: 16.5px; line-height: 26px; font-weight: 600; }
+.lm-md h3 { margin: 18px 0 6px; font-size: 15px; line-height: 22px; font-weight: 600; color: var(--lm-text); }
+.lm-md h1 { margin: 20px 0 10px; font-size: 16px; line-height: 26px; font-weight: 600; }
 .lm-md ul { list-style: none; margin: 5px 0 11px; padding: 0; }
 .lm-md ul li { position: relative; padding-left: 16px; margin: 4px 0; }
 .lm-md ul li::before {
@@ -502,13 +509,13 @@ window.__ModuleLoader__.load({
 }
 .lm-md ol { margin: 4px 0 10px; padding-left: 20px; }
 .lm-md ol li { margin: 4px 0; padding-left: 2px; }
-.lm-md ol li::marker { color: var(--lm-caption); font-variant-numeric: tabular-nums; font-size: 12px; }
+.lm-md ol li::marker { color: var(--lm-text-2); font-variant-numeric: tabular-nums; font-size: 12px; }
 .lm-md strong { font-weight: 600; color: var(--lm-text); }
 .lm-md em { font-style: italic; }
 .lm-md code {
   padding: 1px 5px; border-radius: 4px;
   background: var(--dsw-alias-markdown-inline-code, rgba(0, 0, 0, .05));
-  font-family: var(--lm-mono); font-size: 12.5px;
+  font-family: var(--lm-mono); font-size: 13px;
 }
 .lm-md a {
   color: var(--lm-link); text-decoration: none;
@@ -528,7 +535,7 @@ window.__ModuleLoader__.load({
   min-width: 16px; height: 16px; padding: 0 4px;
   display: inline-flex; align-items: center; justify-content: center;
   border-radius: 999px; background: color-mix(in srgb, var(--lm-text) 6%, transparent);
-  color: var(--lm-text-3); font-size: 10px; line-height: 1;
+  color: var(--lm-text-2); font-size: 11px; line-height: 1;
   font-variant-numeric: tabular-nums; font-weight: 400;
 }
 
@@ -562,7 +569,7 @@ window.__ModuleLoader__.load({
   display: inline-flex; align-items: center; gap: 3px;
   height: 19px; padding: 0 6px; border-radius: 5px;
   background: color-mix(in srgb, var(--lm-text) 5%, transparent);
-  color: var(--lm-text-2); font-size: 11.5px; line-height: 1;
+  color: var(--lm-text-2); font-size: 12px; line-height: 1;
   white-space: nowrap;
 }
 .lm-tag[data-kind="due"] { background: color-mix(in srgb, var(--lm-warn) 12%, transparent); color: var(--lm-warn-ink); }
@@ -574,7 +581,7 @@ window.__ModuleLoader__.load({
   display: inline-flex; align-items: center;
   height: 23px; padding: 0 9px; border-radius: 999px;
   background: color-mix(in srgb, var(--lm-text) 5%, transparent);
-  color: var(--lm-text-2); font-size: 11px; line-height: 1;
+  color: var(--lm-text-2); font-size: 12px; line-height: 1;
 }
 .lm-chip::before { content: '#'; margin-right: 2px; color: var(--lm-caption); }
 
@@ -589,14 +596,14 @@ window.__ModuleLoader__.load({
   flex: 1; min-width: 0; height: 38px; padding: 0 11px;
   border: .5px solid var(--lm-border); border-radius: 9px;
   background: transparent; cursor: pointer; text-align: left;
-  color: var(--lm-text-2); font-size: 12.5px;
+  color: var(--lm-text-2); font-size: 13px;
   transition: background .12s ease, border-color .12s ease;
 }
 @media (hover: hover) { .lm-transcript-toggle:hover { background: var(--lm-hover); } }
 .lm-transcript-toggle[aria-expanded="true"] { border-color: var(--lm-border); background: color-mix(in srgb, var(--lm-text) 2.5%, transparent); }
 .lm-chevron { flex: none; color: var(--lm-caption); transition: transform .16s ease; }
 .lm-transcript-toggle[aria-expanded="true"] .lm-chevron { transform: rotate(90deg); }
-.lm-transcript-meta { flex: 1; min-width: 0; color: var(--lm-text-3); font-size: 11.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lm-transcript-meta { flex: 1; min-width: 0; color: var(--lm-text-2); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .lm-transcript-toggle .lm-btn { height: 24px; }
 .lm-transcript {
   margin-top: 8px; padding: 6px;
@@ -612,20 +619,27 @@ window.__ModuleLoader__.load({
   border-radius: 50%;
   background: color-mix(in srgb, var(--tone, #4176e6) 16%, transparent);
   color: color-mix(in srgb, var(--tone, #4176e6) 68%, var(--lm-text));
-  font-size: 10px; line-height: 1; font-weight: 600;
+  font-size: 11px; line-height: 1; font-weight: 600;
 }
 .lm-turn-main { flex: 1; min-width: 0; }
 .lm-turn-head { display: flex; align-items: baseline; gap: 6px; }
 .lm-turn-who { font-size: 12px; line-height: 18px; font-weight: 600; color: var(--lm-text-2); }
-.lm-turn-time { font-size: 10.5px; line-height: 16px; color: var(--lm-text-3); font-family: var(--lm-mono); }
-.lm-turn-text { margin-top: 2px; font-size: 13.5px; line-height: 1.72; color: var(--lm-text); word-break: break-word; }
+.lm-turn-time { font-size: 11px; line-height: 16px; color: var(--lm-text-2); font-family: var(--lm-mono); }
+.lm-turn-text { margin-top: 2px; font-size: 14px; line-height: 1.72; color: var(--lm-text); word-break: break-word; }
 .lm-transcript-more {
   width: 100%; height: 30px; margin-top: 4px;
   border: .5px solid var(--lm-border); border-radius: 7px;
-  background: transparent; color: var(--lm-text-3);
-  font-size: 11px; cursor: pointer;
+  background: transparent; color: var(--lm-text-2);
+  font-size: 12px; cursor: pointer;
 }
 @media (hover: hover) { .lm-transcript-more:hover { background: var(--lm-hover); color: var(--lm-text-2); } }
+/* 按需拉逐字稿：加载中 / 失败重试 */
+.lm-transcript-loading {
+  display: flex; align-items: center; gap: 8px;
+  padding: 14px 12px; font-size: 12px; line-height: 18px; color: var(--lm-text-2);
+}
+.lm-transcript-loading[data-tone="err"] { color: var(--lm-err-ink); flex-wrap: wrap; }
+.lm-transcript-loading .lm-btn { margin-left: auto; }
 
 /* footer */
 .lm-foot {
@@ -633,10 +647,10 @@ window.__ModuleLoader__.load({
   border-top: .5px solid var(--lm-border-soft);
   display: flex; flex-wrap: wrap; align-items: center;
   gap: 5px 14px;
-  font-size: 11px; line-height: 17px; color: var(--lm-text-3);
+  font-size: 12px; line-height: 17px; color: var(--lm-text-2);
 }
 .lm-foot-item { display: inline-flex; align-items: center; gap: 4px; }
-.lm-foot a { color: var(--lm-text-3); text-decoration: none; }
+.lm-foot a { color: var(--lm-text-2); text-decoration: none; }
 .lm-foot a:hover { color: var(--lm-link); }
 
 /* ---------------------------------------------------------------- process */
@@ -655,8 +669,8 @@ window.__ModuleLoader__.load({
   background: color-mix(in srgb, var(--lm-warn) 12%, transparent);
   color: var(--lm-warn-ink);
 }
-.lm-progress-title { font-size: 13.5px; font-weight: 600; letter-spacing: -.005em; }
-.lm-progress-hint { margin-top: 3px; font-size: 11.5px; line-height: 18px; color: var(--lm-text-3); }
+.lm-progress-title { font-size: 14px; font-weight: 600; letter-spacing: -.005em; }
+.lm-progress-hint { margin-top: 3px; font-size: 12px; line-height: 18px; color: var(--lm-text-2); }
 .lm-bar {
   height: 2px; margin: 14px 0 13px;
   border-radius: 2px; overflow: hidden;
@@ -670,7 +684,7 @@ window.__ModuleLoader__.load({
 .lm-steps { display: flex; flex-direction: column; gap: 2px; }
 .lm-step {
   display: flex; align-items: center; gap: 9px;
-  padding: 4px 0; font-size: 12px; line-height: 18px; color: var(--lm-text-3);
+  padding: 4px 0; font-size: 12px; line-height: 18px; color: var(--lm-text-2);
 }
 .lm-step[data-state="done"] { color: var(--lm-text-2); }
 .lm-step[data-state="active"] { color: var(--lm-text); font-weight: 500; }
@@ -689,7 +703,7 @@ window.__ModuleLoader__.load({
   content: ''; width: 6px; height: 6px; border-radius: 50%;
   background: var(--lm-brand); animation: lm-pulse 1.2s ease-in-out infinite;
 }
-.lm-step-note { margin-left: auto; font-size: 10.5px; color: var(--lm-caption); font-weight: 400; }
+.lm-step-note { margin-left: auto; font-size: 11px; color: var(--lm-text-2); font-weight: 400; }
 
 /* ---------------------------------------------------------------- failure */
 .lm-fail {
@@ -703,12 +717,12 @@ window.__ModuleLoader__.load({
 .lm-fail-text {
   padding: 9px 11px; border-radius: 8px;
   background: var(--lm-bg); border: .5px solid var(--lm-border-soft);
-  font-family: var(--lm-mono); font-size: 11px; line-height: 17px;
+  font-family: var(--lm-mono); font-size: 12px; line-height: 17px;
   color: var(--lm-text-2); word-break: break-word;
   max-height: 140px; overflow: auto;
 }
 .lm-fail-actions { display: flex; align-items: center; gap: 8px; margin-top: 12px; }
-.lm-fail-note { margin-top: 9px; font-size: 11px; line-height: 17px; color: var(--lm-text-3); }
+.lm-fail-note { margin-top: 9px; font-size: 12px; line-height: 17px; color: var(--lm-text-2); }
 
 /* ---------------------------------------------------------------- toast */
 .lm-toast {
@@ -772,8 +786,8 @@ window.__ModuleLoader__.load({
   .lm-btn-label { display: none; }
   .lm-icon-btn { width: 30px; height: 30px; }
   .lm-list-scroll { padding: 6px 8px 10px; }
-  .lm-detail-title { font-size: 15.5px; line-height: 23px; white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-  .lm-detail-meta { font-size: 11px; }
+  .lm-detail-title { font-size: 15px; line-height: 23px; white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .lm-detail-meta { font-size: 12px; }
   .lm-detail-inner { padding: 14px 16px 40px; }
   .lm-quote-text { font-size: 13px; }
   .lm-md { font-size: 13px; line-height: 1.78; }
@@ -991,6 +1005,30 @@ window.__ModuleLoader__.load({
         : `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
     }
 
+    // 列表按「今天 / 昨天 / 更早」分桶；只有「更早」的行在行内补日期
+    function dayBucket(ms) {
+      if (!ms) return '更早'
+      const date = new Date(ms)
+      const today = new Date()
+      const startToday = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime()
+      const startDate = new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime()
+      const diff = Math.round((startToday - startDate) / 86400000)
+      if (diff <= 0) return '今天'
+      if (diff === 1) return '昨天'
+      return '更早'
+    }
+
+    function listTime(ms) {
+      if (!ms) return ''
+      const date = new Date(ms)
+      const hm = `${pad(date.getHours())}:${pad(date.getMinutes())}`
+      if (dayBucket(ms) !== '更早') return hm
+      const sameYear = date.getFullYear() === new Date().getFullYear()
+      return sameYear
+        ? `${date.getMonth() + 1}月${date.getDate()}日 ${hm}`
+        : `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日 ${hm}`
+    }
+
     function durationText(ms) {
       if (!ms) return ''
       const minutes = Math.max(1, Math.round(ms / 60000))
@@ -1008,11 +1046,17 @@ window.__ModuleLoader__.load({
       return `同步于 ${relativeTime(ms)}`
     }
 
-    // 和「同步」按钮并排用的紧凑写法：只给「刚刚 / 3 分钟前 / 14:03」，避免「同步 同步」
-    function syncShort(ms) {
+    // 走字版：正常间隔约 60 秒，秒数能把「后台真的在轮询」这件事显示出来。
+    // 只在前两分钟走秒；再久说明同步卡住/失败/机器休眠过，退回分钟，不展示
+    // 「3000 秒前」这种既吓人又没信息量的数字。
+    const TICK_QUIET_MS = 6000
+    const TICK_SECONDS_MAX_MS = 120000
+
+    function syncTickLabel(ms, at) {
       if (!ms) return ''
-      const diff = Date.now() - ms
-      if (diff < 60000) return '刚刚'
+      const diff = Math.max(0, at - ms)
+      if (diff < TICK_QUIET_MS) return '刚刚'
+      if (diff < TICK_SECONDS_MAX_MS) return `${Math.floor(diff / 1000)} 秒前`
       if (diff < 3600000) return `${Math.max(1, Math.round(diff / 60000))} 分钟前`
       return relativeTime(ms)
     }
@@ -1233,14 +1277,61 @@ window.__ModuleLoader__.load({
         h('span', null, props.toast.text))
     }
 
+    // ---------------------------------------------------------------- sync badge
+
+    // 独立组件：每秒重渲染只发生在这一小块，不会带着整棵列表/逐字稿一起重算。
+    function SyncBadge(props) {
+      const lastSync = props.lastSync
+      const [at, setAt] = useState(() => Date.now())
+
+      useEffect(() => {
+        setAt(Date.now())
+        if (!lastSync) return undefined
+        let timer = null
+        let slow = false
+        function arm(ms) {
+          if (timer) clearInterval(timer)
+          timer = setInterval(tick, ms)
+        }
+        function tick() {
+          const current = Date.now()
+          setAt(current)
+          // 走出秒数区间后把表调慢：分钟档不需要每秒重渲染，但得继续走，
+          // 否则「2 分钟前」会永远停在那儿。
+          if (!slow && current - lastSync >= TICK_SECONDS_MAX_MS) {
+            slow = true
+            arm(30000)
+          }
+        }
+        arm(1000)
+        // 切回前台时立刻对表：后台节流/休眠会让秒数跳变，这是真实值，不该藏
+        const onVisible = () => {
+          if (!document.hidden) tick()
+        }
+        document.addEventListener('visibilitychange', onVisible)
+        return () => {
+          if (timer) clearInterval(timer)
+          document.removeEventListener('visibilitychange', onVisible)
+        }
+      }, [lastSync])
+
+      const text = syncTickLabel(lastSync, at)
+      if (!text) return null
+      // aria-hidden：按钮已有固定的 aria-label，别让读屏软件每秒念一次
+      return h('span', {
+        className: 'lm-tool-meta lm-sync-state',
+        'data-tone': props.tone,
+        'aria-hidden': 'true',
+      }, `· ${text}`)
+    }
+
     // ---------------------------------------------------------------- list row
 
     function ListRow(props) {
       const item = props.item
       const selected = props.selected
-      const time = relativeTime(item.createTime)
-      const duration = durationText(item.durationMs)
-      // 状态标记统一放在标题右侧（与「文件+对号」同一位置），左侧不再画圆点
+      const time = listTime(item.createTime)
+      // 状态图标在最左，标题独占中间，时间贴右缘；时长只在详情头出现
       const flag = item.docUrl
         ? { tone: 'ok', icon: IconDoc, title: '已生成纪要文档' }
         : item.status === 'failed'
@@ -1263,19 +1354,15 @@ window.__ModuleLoader__.load({
         onClick: () => props.onSelect(item.token),
         onKeyDown: (event) => props.onKeyDown(event, item),
       },
-      // 网格：图标占第一列，元信息与标题都从第二列起笔，标题自然和日期左对齐
       flag
-        ? h('span', { className: 'lm-row-flag', 'data-tone': flag.tone, title: flag.title },
+        ? h('span', { className: 'lm-row-flag', 'data-tone': flag.tone, title: flag.title, role: 'img', 'aria-label': flag.title },
           h(flag.icon, {
             size: 13,
             className: flag.icon === IconSpinner ? 'lm-spin' : undefined,
           }))
-        : null,
-      h('span', { className: 'lm-row-meta' },
-        time ? h('span', { className: 'lm-row-time' }, time) : null,
-        time && duration ? h('span', { className: 'lm-row-sep' }, '·') : null,
-        duration ? h('span', { className: 'lm-row-dur' }, duration) : null),
-      h('span', { className: 'lm-row-title' }, item.title))
+        : h('span', { className: 'lm-row-flag', 'aria-hidden': 'true' }),
+      h('span', { className: 'lm-row-title' }, item.title),
+      time ? h('span', { className: 'lm-row-time' }, time) : null)
     }
 
     // ---------------------------------------------------------------- detail
@@ -1345,13 +1432,82 @@ window.__ModuleLoader__.load({
     function TranscriptBlock(props) {
       const [expanded, setExpanded] = useState(false)
       const [visible, setVisible] = useState(80)
-      if (!props.raw && !props.chars) return null
-      const turns = props.turns
+      // 本机没有这个文件时，展开会现场拉一次；拉回来的正文先放这里，等详情刷新后再以 props 为准
+      const [localRaw, setLocalRaw] = useState('')
+      const [fetching, setFetching] = useState(false)
+      const [fetchError, setFetchError] = useState('')
+
+      const raw = props.raw || localRaw
+      const chars = props.chars || raw.length
+      // 没有本地逐字稿、但在线妙记还在：不再整块消失，给一个「点开可拉取」的入口
+      const canFetch = !raw && Boolean(props.canFetch)
+      if (!raw && !chars && !canFetch) return null
+
+      const turns = useMemo(
+        () => (raw && raw !== props.raw ? parseTranscript(raw) : props.turns),
+        [raw, props.raw, props.turns],
+      )
+
+      const load = async () => {
+        if (fetching) return
+        setFetching(true)
+        setFetchError('')
+        try {
+          const text = await props.onFetch()
+          if (text) setLocalRaw(text)
+        } catch (error) {
+          setFetchError(error?.message || '读取逐字稿失败')
+        } finally {
+          setFetching(false)
+        }
+      }
+
       const shown = turns.slice(0, visible)
       const rest = turns.length - shown.length
-      const label = turns.length
-        ? `${turns.length} 段${props.speakers.length ? ` · ${props.speakers.length} 位发言人` : ''} · ${formatChars(props.chars)}`
-        : formatChars(props.chars)
+      const label = fetching
+        ? '正在从飞书读取…'
+        : fetchError
+          ? '读取失败 · 点开重试'
+          : canFetch
+            ? '未同步到本机 · 点开可拉取'
+            : turns.length
+              ? `${turns.length} 段${props.speakers.length ? ` · ${props.speakers.length} 位发言人` : ''} · ${formatChars(chars)}`
+              : formatChars(chars)
+
+      const body = fetching
+        ? h('div', { className: 'lm-transcript-loading' },
+          h(IconSpinner, { size: 13, className: 'lm-spin' }),
+          h('span', null, '正在从飞书读取逐字稿…'))
+        : fetchError
+          ? h('div', { className: 'lm-transcript-loading', 'data-tone': 'err' },
+            h('span', null, `读取失败：${fetchError}`),
+            h('button', {
+              type: 'button',
+              className: 'lm-btn lm-btn-quiet',
+              onClick: load,
+            }, '重试'))
+          : turns.length
+            ? h('div', { className: 'lm-transcript-body' },
+              shown.map((turn, index) => h('div', { key: index, className: 'lm-turn' },
+                h('span', {
+                  className: 'lm-avatar',
+                  style: { '--tone': speakerTone(turn.who) },
+                }, speakerInitial(turn.who)),
+                h('div', { className: 'lm-turn-main' },
+                  h('div', { className: 'lm-turn-head' },
+                    h('span', { className: 'lm-turn-who' }, turn.who),
+                    h('span', { className: 'lm-turn-time' }, shortTimestamp(turn.time))),
+                  h('div', { className: 'lm-turn-text' }, turn.text)))),
+              rest > 0
+                ? h('button', {
+                  type: 'button',
+                  className: 'lm-transcript-more',
+                  onClick: () => setVisible((value) => value + 200),
+                }, `继续显示剩余 ${rest} 段`)
+                : null)
+            : h('div', { style: { padding: '14px 12px', fontSize: 12, color: 'var(--lm-text-2)' } },
+              raw ? '逐字稿格式无法解析，已按原文展示。' : '本地没有留存逐字稿。')
+
       return h('div', { className: 'lm-section' },
         h('div', { className: 'lm-transcript-head' },
           h('button', {
@@ -1359,47 +1515,33 @@ window.__ModuleLoader__.load({
             className: 'lm-transcript-toggle',
             'aria-expanded': expanded ? 'true' : 'false',
             onClick: () => {
-              setExpanded(!expanded)
-              if (!expanded) setVisible(80)
+              const next = !expanded
+              setExpanded(next)
+              if (next) {
+                setVisible(80)
+                // 只在真正展开时拉：同步循环和普通刷新都不碰这条妙记
+                if (!raw && canFetch && !fetching) load()
+              }
             },
           },
           h(IconChevron, { size: 13, className: 'lm-chevron' }),
           h('span', null, '逐字稿'),
           h('span', { className: 'lm-transcript-meta' }, label)),
-          props.raw
+          raw
             ? h('button', {
               type: 'button',
               className: 'lm-btn lm-icon-btn lm-transcript-copy',
               title: '复制逐字稿',
               'aria-label': '复制逐字稿',
-              onClick: props.onCopy,
+              // 传当前正文：刚拉回来、详情还没刷新时 props 里还是空的
+              onClick: () => props.onCopy(raw),
             }, h(IconCopy, { size: 14 }))
             : null),
         expanded
           ? h('div', { className: 'lm-transcript' },
-            turns.length
-              ? h('div', { className: 'lm-transcript-body' },
-                shown.map((turn, index) => h('div', { key: index, className: 'lm-turn' },
-                  h('span', {
-                    className: 'lm-avatar',
-                    style: { '--tone': speakerTone(turn.who) },
-                  }, speakerInitial(turn.who)),
-                  h('div', { className: 'lm-turn-main' },
-                    h('div', { className: 'lm-turn-head' },
-                      h('span', { className: 'lm-turn-who' }, turn.who),
-                      h('span', { className: 'lm-turn-time' }, shortTimestamp(turn.time))),
-                    h('div', { className: 'lm-turn-text' }, turn.text)))),
-                rest > 0
-                  ? h('button', {
-                    type: 'button',
-                    className: 'lm-transcript-more',
-                    onClick: () => setVisible((value) => value + 200),
-                  }, `继续显示剩余 ${rest} 段`)
-                  : null)
-              : h('div', { style: { padding: '14px 12px', fontSize: 12, color: 'var(--lm-text-3)' } },
-                props.raw ? '逐字稿格式无法解析，已按原文展示。' : '本地没有留存逐字稿。'),
-            !turns.length && props.raw
-              ? h('pre', { style: { margin: '0 8px 8px', whiteSpace: 'pre-wrap', fontSize: 11.5, lineHeight: 1.7, color: 'var(--lm-text-2)', fontFamily: 'var(--lm-mono)', maxHeight: 300, overflow: 'auto' } }, props.raw)
+            body,
+            !turns.length && raw
+              ? h('pre', { style: { margin: '0 8px 8px', whiteSpace: 'pre-wrap', fontSize: 11.5, lineHeight: 1.7, color: 'var(--lm-text-2)', fontFamily: 'var(--lm-mono)', maxHeight: 300, overflow: 'auto' } }, raw)
               : null)
           : null)
     }
@@ -1480,6 +1622,11 @@ window.__ModuleLoader__.load({
           chars: item.transcriptChars || transcriptRaw.length,
           speakers: item.speakers || [],
           onCopy: props.onCopyTranscript,
+          // 只有「已经整理过、但本机没留逐字稿」才给按需拉取入口：
+          // 别的设备生成的（有 docUrl）和本地 /tmp 被清掉的（chars>0）。
+          // 不看 item.url：拉取只用 token，链接缺失不影响；妙记已删时会在块内报错。
+          canFetch: Boolean(item.docUrl) || Boolean(item.transcriptChars),
+          onFetch: () => props.onLoadTranscript(item.token),
         }),
         h('div', { className: 'lm-foot' },
           model ? h('span', { className: 'lm-foot-item' }, `模型 ${model}`) : null,
@@ -1522,23 +1669,28 @@ window.__ModuleLoader__.load({
           : null,
       ].filter(Boolean)
 
-      // 交付徽标只表达状态：跳转入口统一放在头部操作区，避免同一个链接在一屏里出现两次
-      const delivery = []
+      // 交付凭证收成一个 chip：状态在明面，三项细节进 tooltip；跳转入口仍在操作区
+      const deliveryLabels = []
       if (item.docUrl) {
-        delivery.push(h('span', { key: 'doc', className: 'lm-del' },
-          h(IconCheck, { size: 11 }),
-          h('span', null, item.adoptedAt ? '纪要在其他设备已生成' : '纪要文档已生成')))
+        deliveryLabels.push(item.adoptedAt ? '纪要在其他设备已生成' : '纪要文档已生成')
+        if (item.titleWrittenBack) deliveryLabels.push('标题已写回')
+        if (state?.index?.url) deliveryLabels.push('索引已更新')
       } else if (!isPending(item.status) && item.status !== 'failed') {
-        delivery.push(h('span', { key: 'nodoc', className: 'lm-del', 'data-tone': 'muted' }, h(IconDoc, { size: 11 }), '未生成纪要文档'))
+        deliveryLabels.push('未生成纪要文档')
       }
-      if (item.docUrl && item.titleWrittenBack) {
-        delivery.push(h('span', { key: 'title', className: 'lm-del' }, h(IconCheck, { size: 11 }), '标题已写回'))
-      }
-      if (item.docUrl && state?.index?.url) {
-        delivery.push(h('span', { key: 'index', className: 'lm-del' },
-          h(IconCheck, { size: 11 }),
-          h('span', null, '索引已更新')))
-      }
+      const delivered = Boolean(item.docUrl)
+      const deliveryChip = deliveryLabels.length
+        ? h('span', {
+          className: 'lm-deliv',
+          'data-tone': delivered ? undefined : 'muted',
+          title: deliveryLabels.join(' · '),
+          'aria-label': deliveryLabels.join('，'),
+        },
+        delivered ? h(IconCheck, { size: 11 }) : h(IconDoc, { size: 11 }),
+        delivered
+          ? (deliveryLabels.length >= 3 ? '已交付' : '已生成')
+          : '未生成')
+        : null
 
       const progressStage = serverProcessing
         ? item.status
@@ -1550,6 +1702,7 @@ window.__ModuleLoader__.load({
           key: item.token,
           detail,
           onCopyTranscript: props.onCopyTranscript,
+          onLoadTranscript: props.onLoadTranscript,
         })
         : null
       // 走到这里说明「文档存在但正文没读回来」（接口失败/无权限/文档被清空）
@@ -1688,7 +1841,8 @@ window.__ModuleLoader__.load({
           className: 'lm-pill',
           'data-tone': pill.tone,
           'data-live': pill.live ? 'true' : undefined,
-        }, h('span', { className: 'lm-pill-dot' }), pill.label))
+        }, h('span', { className: 'lm-pill-dot' }), pill.label),
+        deliveryChip)
 
       const head = h('div', { className: 'lm-detail-head' },
         h('div', { className: 'lm-detail-head-inner' },
@@ -1702,8 +1856,7 @@ window.__ModuleLoader__.load({
           }, h(IconBack, { size: 16 })),
           h('h2', { className: 'lm-detail-title', title: item.title }, item.title),
           actions),
-        metaRow,
-        delivery.length ? h('div', { className: 'lm-delivery' }, delivery) : null))
+        metaRow))
 
       return h('div', { className: 'lm-detail' },
         head,
@@ -1738,6 +1891,9 @@ window.__ModuleLoader__.load({
       const searchRef = useRef(null)
       const queryRef = useRef('')
       const rootRef = useRef(null)
+      // 长连接是否活着：活着就不需要高频兜底轮询，断了退回 20 秒（老版本 Host 没
+      // /events 时，行为与改动前完全一致）。
+      const sseOpenRef = useRef(false)
 
       useEffect(() => {
         selectedRef.current = selected
@@ -1752,8 +1908,17 @@ window.__ModuleLoader__.load({
       }, [])
 
       // list + plugin state
+      //
+      // 数据变化由 Host 通过 /events（SSE）推一个版本号过来，只有 rev 变了才去读
+      // /list + /state：推送保时效，长连接还活着时不做定时轮询（服务端每 25 秒
+      // 一个心跳，连接死了浏览器立刻能发现）。连接不可用时退回 20 秒轮询，
+      // 行为与改动前一致。
+      //
+      // load 放 ref 里，SSE 那条 effect 才不会因为 tick 变化反复重连。
+      const loadRef = useRef(() => {})
       useEffect(() => {
         let alive = true
+
         function load() {
           // The list is the critical path; auth status runs against lark-cli and
           // can be slow, so it must not hold the list back.
@@ -1782,13 +1947,83 @@ window.__ModuleLoader__.load({
             .catch(() => {})
           return Promise.allSettled([listTask, stateTask])
         }
+
+        loadRef.current = load
         load()
-        const timer = setInterval(load, 20000)
+        const timer = setInterval(() => {
+          if (!sseOpenRef.current) loadRef.current()
+        }, 20000)
         return () => {
           alive = false
           clearInterval(timer)
+          if (loadRef.current === load) loadRef.current = () => {}
         }
       }, [tick])
+
+      // 变化推送：只在挂载时建一条长连接，tick 变化（点同步、切筛选）不重连。
+      useEffect(() => {
+        let alive = true
+        let source = null
+        let retryTimer = null
+        let lastRev = null
+        let failures = 0
+
+        function connect() {
+          if (!alive || source) return
+          if (typeof EventSource === 'undefined') return
+          try {
+            source = new EventSource(`${API}/events`)
+          } catch {
+            source = null
+            return
+          }
+          source.addEventListener('open', () => {
+            failures = 0
+            sseOpenRef.current = true
+            // 重连后不信任本地记的 rev：连接一建立服务端就会推首帧 rev，
+            // 那帧会触发一次读，正好补上断线期间漏掉的更新。
+            lastRev = null
+          })
+          source.addEventListener('rev', (event) => {
+            let rev = null
+            try {
+              rev = JSON.parse(event.data)?.rev ?? null
+            } catch {
+              rev = null
+            }
+            if (rev === lastRev) return
+            lastRev = rev
+            loadRef.current()
+          })
+          source.addEventListener('error', () => {
+            failures += 1
+            sseOpenRef.current = false
+            // 反复失败（老版本 Host 没这个路由 / 服务重启）就先放弃长连接，
+            // 交给 20 秒兜底轮询，过一会儿再试，别每 3 秒重连一次打满日志。
+            if (failures >= 3 && source) {
+              source.close()
+              source = null
+              if (alive && !retryTimer) {
+                retryTimer = setTimeout(() => {
+                  retryTimer = null
+                  connect()
+                }, 60000)
+              }
+            }
+          })
+        }
+
+        connect()
+        return () => {
+          alive = false
+          if (retryTimer) clearTimeout(retryTimer)
+          if (source) {
+            source.close()
+            source = null
+          }
+          sseOpenRef.current = false
+        }
+      }, [])
 
       // detail
       useEffect(() => {
@@ -1931,10 +2166,20 @@ window.__ModuleLoader__.load({
         })
       }, [items, filter, query])
 
-      // 「最新」就是窗口内发现的全部记录（Host 已经按时间窗口过滤过），
+      // 「全部」就是窗口内发现的全部记录（Host 已经按时间窗口过滤过），
       // 不再按条数分页；筛选和搜索只是在同一批记录上收敛。
       const searching = filter !== 'all' || Boolean(query.trim())
       const visible = matched
+      const grouped = useMemo(() => {
+        const groups = []
+        for (const item of visible) {
+          const label = dayBucket(item.createTime)
+          const last = groups[groups.length - 1]
+          if (last && last.label === label) last.items.push(item)
+          else groups.push({ label, items: [item] })
+        }
+        return groups
+      }, [visible])
 
       // when narrowing the list, keep a visible selection
       useEffect(() => {
@@ -2063,8 +2308,9 @@ window.__ModuleLoader__.load({
         }
       }, [pushToast])
 
-      const copyTranscript = useCallback(async () => {
-        const raw = detail?.transcript || ''
+      const copyTranscript = useCallback(async (text) => {
+        // 详情里的正文，或调用方刚拉回来的正文（拉取后详情还没刷新时用得上）
+        const raw = (typeof text === 'string' && text) || detail?.transcript || ''
         if (!raw) {
           pushToast('warn', '本地没有留存逐字稿')
           return
@@ -2077,6 +2323,18 @@ window.__ModuleLoader__.load({
         }
       }, [detail, pushToast])
 
+      // 按需拉逐字稿：只在详情里点开「逐字稿」时触发，不会进同步循环。
+      // 拉完 setTick 让详情重新读一次，之后的渲染路径和本机整理的记录完全一致。
+      const loadTranscript = useCallback(async (token) => {
+        const result = await api('/transcript', {
+          method: 'POST',
+          body: JSON.stringify({ token }),
+        })
+        if (!result?.ok) throw new Error(result?.error || '读取逐字稿失败')
+        setTick((value) => value + 1)
+        return result.transcript || ''
+      }, [])
+
       const auth = state?.auth
       // 登录正常时不展示身份（名字/绿点属噪音）；失效才提示一句，原因放 tooltip
       const authBroken = auth ? auth.ok === false : false
@@ -2086,11 +2344,8 @@ window.__ModuleLoader__.load({
           ? [auth.name, remainingText(auth.expiresAt)].filter(Boolean).join(' · ')
           : (auth.message || '请在终端运行 lark-cli auth login 重新登录')
       const syncText = syncLabel(state?.lastSync)
-      const syncBadge = !state
-        ? ''
-        : state.lastError
-          ? '上次失败'
-          : syncShort(state.lastSync)
+      // 同步中不并列旧时间，避免「同步中 · 45 秒前」这种自相矛盾的组合
+      const syncBadge = !state || syncing ? '' : (state.lastError ? '上次失败' : 'tick')
 
       const showEmpty = !items.length && !error
       const noItems = !items.length && Boolean(state || error)
@@ -2163,12 +2418,17 @@ window.__ModuleLoader__.load({
             ? h(IconAlert, { size: 14 })
             : h(IconRefresh, { size: 14 }),
         h('span', { className: 'lm-btn-label' }, syncing ? '同步中' : state?.lastError ? '重试同步' : '同步'),
-        syncBadge
-          ? h('span', {
-            className: 'lm-tool-meta lm-sync-state',
-            'data-tone': state?.lastError ? 'err' : state?.lastWarning ? 'warn' : 'muted',
-          }, `· ${syncBadge}`)
-          : null)),
+        syncBadge === 'tick'
+          ? h(SyncBadge, {
+            lastSync: state.lastSync,
+            tone: state?.lastWarning ? 'warn' : 'muted',
+          })
+          : syncBadge
+            ? h('span', {
+              className: 'lm-tool-meta lm-sync-state',
+              'data-tone': 'err',
+            }, `· ${syncBadge}`)
+            : null)),
       h('div', { className: 'lm-tools' },
         h('div', { className: 'lm-tabs', role: 'tablist', 'aria-label': '按状态筛选' },
           FILTERS.map((entry, index) => h('button', {
@@ -2226,13 +2486,15 @@ window.__ModuleLoader__.load({
             !state && !items.length
               ? h(SkeletonList)
               : visible.length
-                ? visible.map((item) => h(ListRow, {
-                  key: item.token,
-                  item,
-                  selected: item.token === selected,
-                  onSelect: selectItem,
-                  onKeyDown: onRowKeyDown,
-                }))
+                ? grouped.map((group) => h(React.Fragment, { key: group.label },
+                  h('div', { className: 'lm-ghead' }, group.label),
+                  group.items.map((item) => h(ListRow, {
+                    key: item.token,
+                    item,
+                    selected: item.token === selected,
+                    onSelect: selectItem,
+                    onKeyDown: onRowKeyDown,
+                  }))))
                 : error && !items.length
                   ? h(EmptyState, {
                     title: '暂时读不到妙记',
@@ -2295,6 +2557,7 @@ window.__ModuleLoader__.load({
           onReload: () => setTick((value) => value + 1),
           onBack: () => setMobileDetail(false),
           onCopyTranscript: copyTranscript,
+          onLoadTranscript: loadTranscript,
           scrollRef: detailScrollRef,
         })),
       toast ? h(Toast, { toast }) : null)

@@ -9,3 +9,5 @@ npm-debug.log*
 PRD.md
 docs/*.jpg
 event-subscribe-qr.png
+# 界面原型稿只作本地设计记录，不入库
+doc/
