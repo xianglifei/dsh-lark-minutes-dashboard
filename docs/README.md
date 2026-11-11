@@ -13,12 +13,20 @@ python3 -m http.server 8765
 
 ## 发布
 
-1. 把分支合并回 `main`；
-2. 仓库 Settings → Pages → Build and deployment；
+两种都行，推荐第一种：站点跟代码留在同一个分支，改版时不用维护第二条分支。
+
+**A. 合并回 `main`（推荐）**
+
+1. 把 `site` 合并回 `main`；
+2. Settings → Pages → Build and deployment；
 3. Source 选 **Deploy from a branch**，Branch 选 **main**，目录选 **/docs**；
 4. 等一分钟，站点地址：<https://xianglifei.github.io/dsh-lark-minutes-dashboard/>。
 
-只改页面时不需要重新构建，推送 `docs/` 的改动即可。
+**B. 站点独立在 `site` 分支**
+
+不合并，Pages 里 Branch 选 **site**、目录选 **/docs**。以后页面改动只推 `site`。
+
+两种方式 URL 相同，都只在第一次发布时点一次设置；之后推送 `docs/` 就会自动更新。
 
 ## 文件
 
