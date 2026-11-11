@@ -1006,6 +1006,24 @@ kbd {
 }
 .stat-row-wide .stat { padding-left: 0; }
 
+/* ------------------------------------------------------------------ extras */
+
+.extras {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  margin-top: 44px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
+}
+.extra { padding: 22px 24px 24px; min-width: 0; }
+.extra + .extra { border-left: 1px solid var(--border-soft); }
+.extra-num { font-size: 9.5px; letter-spacing: .1em; color: var(--caption); }
+.extra h3 { margin: 13px 0 7px; font-size: 15px; font-weight: 600; letter-spacing: -.01em; }
+.extra p { font-size: 12.5px; line-height: 20px; color: var(--text-2); }
+
 /* ------------------------------------------------------------------ design */
 
 .design-shot { margin: 0; }
@@ -1281,6 +1299,9 @@ kbd {
 
 @media (max-width: 680px) {
   .wrap { padding: 0 20px; }
+  .extras { grid-template-columns: 1fr; margin-top: 30px; }
+  .extra { padding: 18px 18px 20px; }
+  .extra + .extra { border-left: 0; border-top: 1px solid var(--border-soft); }
   .code code { white-space: pre-wrap; overflow-wrap: anywhere; }
   .code-stack { flex-wrap: wrap; }
   .code-stack code { flex: 1 1 100%; white-space: pre; overflow-wrap: normal; }
