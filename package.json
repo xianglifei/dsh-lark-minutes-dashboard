@@ -1,6 +1,6 @@
 {
   "name": "dsh-lark-minutes-dashboard",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "private": true,
   "type": "module",
   "description": "妙记工作台：自动发现飞书妙记、生成标题与完整纪要、写入飞书文档并维护索引",

@@ -11,3 +11,27 @@
         llmTimeoutMs: 180000
         # 发现窗口就是列表的可见范围（默认最近 7 天，已整理的记录不受窗口限制）
         searchWindowDays: 7
+
+        # ---- 自动整理 ----
+        # 发现即入队：够格的自动跑，够不上的留在「待整理」里等人点。
+        # 只自动处理「启用这个版本之后新出现的妙记」，升级时积压的历史欠账不自动跑。
+        autoProcess: true
+        # 短于这个时长不自动整理（挡住手机误触、语音备忘录）
+        autoProcessMinMinutes: 3
+        # 沉淀期：刚录完的妙记转写可能还在跑，早处理会拿到残稿
+        autoProcessSettleMinutes: 5
+        # 标题命中任一关键词就不自动，例如 ["面试", "1:1", "私密"]；空 = 不过滤
+        autoProcessSkipKeywords: []
+        # 转写没就绪时的重试次数与退避（分钟）
+        autoProcessMaxAttempts: 3
+        autoProcessRetryMinutes: [5, 15]
+        # 真失败不自动重试，避免连着烧钱
+        autoRetryFailed: false
+        # 面板开着时的索引读间隔（后台仍是 5 分钟）
+        foregroundRefreshSec: 60
+
+        # ---- 长逐字稿分段总结 ----
+        # 超过这个字数走分段 map-reduce，全文覆盖，不再截断
+        chunkThresholdChars: 20000
+        chunkTargetChars: 10000
+        chunkOverlapChars: 400

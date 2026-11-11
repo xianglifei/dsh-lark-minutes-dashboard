@@ -88,6 +88,7 @@ window.__ModuleLoader__.load({
 /* ---------------------------------------------------------------- header */
 .lm-head {
   flex: none;
+  position: relative;
   width: 100%;
   max-width: 1240px;
   margin: 0 auto;
@@ -115,8 +116,12 @@ window.__ModuleLoader__.load({
 }
 .lm-head-spacer { flex: 1; min-width: 4px; }
 
+/* 一句话检索：静息 248px，聚焦（或已输入超过 12 字）时加宽到 420px。
+   它在 .lm-head 这个 flex 行里、左边是 flex:1 的 spacer——加宽时 spacer 自动
+   收缩，右边的「索引 / 同步」纹丝不动，视觉上就是往左长，不需要绝对定位。 */
 .lm-search {
   position: relative;
+  z-index: 20;
   display: flex;
   align-items: center;
   width: 248px;
@@ -126,7 +131,15 @@ window.__ModuleLoader__.load({
   background: var(--lm-surface);
   border: 1px solid var(--lm-border);
   box-shadow: var(--lm-shadow);
-  transition: background .15s ease, border-color .15s ease, box-shadow .15s ease;
+  transition:
+    width .18s cubic-bezier(.2, .8, .2, 1),
+    background .15s ease, border-color .15s ease, box-shadow .15s ease;
+}
+.lm-search.is-wide { width: 420px; }
+.lm-search-count {
+  flex: none; margin-right: 6px;
+  color: var(--lm-text-3); font-size: 10.5px;
+  font-variant-numeric: tabular-nums;
 }
 .lm-search:focus-within {
   border-color: color-mix(in srgb, var(--lm-link) 45%, var(--lm-border));
@@ -159,6 +172,76 @@ window.__ModuleLoader__.load({
   font-family: var(--lm-mono);
 }
 .lm-search:focus-within .lm-kbd { display: none; }
+
+/* 检索结果：贴着输入框右边缘展开，宽度不够时向左延伸 */
+.lm-drops {
+  position: absolute;
+  top: 38px;
+  right: 0;
+  width: 100%;
+  min-width: 320px;
+  padding: 6px;
+  background: var(--lm-surface);
+  border: 1px solid var(--lm-border);
+  border-radius: 11px;
+  box-shadow:
+    0 1px 2px rgba(15, 23, 42, .06),
+    0 10px 28px -8px rgba(15, 23, 42, .18);
+  z-index: 40;
+  animation: lm-drop .14s ease;
+}
+@keyframes lm-drop {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: none; }
+}
+.lm-drop-head {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 8px; padding: 5px 8px 7px;
+  color: var(--lm-text-3); font-size: 11px;
+}
+.lm-hit {
+  display: flex; gap: 9px; align-items: flex-start;
+  padding: 8px; border-radius: 7px; cursor: pointer;
+}
+.lm-hit:hover, .lm-hit:focus-visible { background: var(--lm-hover); }
+.lm-hit-rank {
+  flex: none; width: 18px; height: 18px; margin-top: 1px;
+  display: grid; place-items: center;
+  border-radius: 5px;
+  background: color-mix(in srgb, var(--lm-link) 12%, transparent);
+  color: var(--lm-link);
+  font-size: 10.5px; font-weight: 600;
+}
+.lm-hit-main { min-width: 0; flex: 1; }
+.lm-hit-title {
+  font-size: 12.5px; line-height: 18px; font-weight: 540;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.lm-hit-why {
+  margin-top: 2px;
+  font-size: 11.5px; line-height: 16px;
+  color: var(--lm-text-2);
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.lm-hit-meta {
+  margin-top: 3px;
+  font-size: 10.5px; color: var(--lm-text-3);
+  font-variant-numeric: tabular-nums;
+}
+.lm-drop-empty {
+  padding: 13px 10px;
+  font-size: 12px; line-height: 1.65;
+  color: var(--lm-text-2);
+}
+.lm-drop-empty b { color: var(--lm-text); font-weight: 560; }
+.lm-drop-empty .lm-drop-hint { display: block; margin-top: 4px; }
+.lm-skel-wrap { display: grid; gap: 8px; padding: 10px 9px; }
+.lm-skel {
+  height: 10px; border-radius: 4px;
+  background: var(--lm-hover);
+  animation: lm-pulse 1.2s ease-in-out infinite;
+}
+@keyframes lm-pulse { 0%, 100% { opacity: .5; } 50% { opacity: 1; } }
 
 .lm-btn {
   display: inline-flex; align-items: center; justify-content: center;
@@ -829,6 +912,7 @@ window.__ModuleLoader__.load({
   .lm-head { padding: 10px 16px 8px; }
   .lm-body { padding: 0 16px 16px; }
   .lm-search { width: 210px; }
+  .lm-search.is-wide { width: 340px; }
   .lm-list-head { padding: 12px 10px 8px; }
   .lm-detail-head { padding: 15px 20px 12px; }
   .lm-detail-scroll { padding: 0 20px; }
@@ -841,7 +925,10 @@ window.__ModuleLoader__.load({
   .lm-detail-title { font-size: 16px; line-height: 24px; }
 }
 @container (max-width: 700px) {
-  .lm-head { min-height: 56px; padding: 9px 12px 7px; gap: 8px; }
+  /* 这个宽度下一行塞不下「品牌 + 一句话检索 + 两个按钮」：检索框独占一行，
+     否则它会被压到一百多像素，长问题直接看不见。 */
+  .lm-head { min-height: 56px; padding: 9px 12px 7px; gap: 8px; flex-wrap: wrap; row-gap: 7px; }
+  .lm-head-spacer { display: none; }
   .lm-body { padding: 0 12px 12px; gap: 12px; }
   .lm-list-pane { flex: 1 1 auto; max-width: none; }
   .lm-detail { display: none; }
@@ -851,7 +938,7 @@ window.__ModuleLoader__.load({
   .lm-root[data-mobile-detail="true"] .lm-banner { display: none; }
   .lm-root[data-mobile-detail="true"] .lm-body { padding: 10px; gap: 0; }
   .lm-back { display: inline-flex; }
-  .lm-search { flex: 1; width: auto; min-width: 0; max-width: none; }
+  .lm-search, .lm-search.is-wide { order: 5; flex: 1 1 100%; width: 100%; min-width: 0; }
   .lm-search .lm-kbd { display: none; }
   .lm-list-head { padding: 10px 10px 7px; }
   .lm-tabs { overflow-x: auto; scrollbar-width: none; }
@@ -878,7 +965,7 @@ window.__ModuleLoader__.load({
 @container (max-width: 560px) {
   .lm-head { flex-wrap: wrap; row-gap: 7px; padding: 9px 10px 9px; }
   .lm-head-spacer { display: none; }
-  .lm-search { order: 5; flex: 1 1 100%; width: 100%; }
+  .lm-search, .lm-search.is-wide { order: 5; flex: 1 1 100%; width: 100%; }
   .lm-body { padding: 0 10px 10px; }
   .lm-list-foot { padding: 8px 12px; }
   .lm-banner { width: calc(100% - 20px); }
@@ -901,7 +988,7 @@ window.__ModuleLoader__.load({
 @container (max-width: 380px) {
   .lm-detail-top { flex-wrap: wrap; row-gap: 6px; }
   .lm-actions { flex: 1 1 100%; justify-content: flex-end; }
-  .lm-search { display: none; }
+  .lm-search { display: flex; }
   .lm-brand-text { display: none; }
 }
 `
@@ -1972,9 +2059,16 @@ window.__ModuleLoader__.load({
       const [error, setError] = useState('')
       const [toast, setToast] = useState(null)
       const [tick, setTick] = useState(0)
-      const [query, setQuery] = useState('')
       const [filter, setFilter] = useState('all')
       const [mobileDetail, setMobileDetail] = useState(false)
+      // 一句话检索：输入 → 回车 → 下拉候选（不改动左侧列表的顺序）
+      const [query, setQuery] = useState('')
+      const [askOpen, setAskOpen] = useState(false)
+      const [asking, setAsking] = useState(false)
+      const [askHits, setAskHits] = useState([])
+      const [askError, setAskError] = useState('')
+      const [askedText, setAskedText] = useState('')
+      const [askFocus, setAskFocus] = useState(false)
       const selectedRef = useRef('')
       const workingRef = useRef('')
       const sendingRef = useRef('')
@@ -1982,7 +2076,8 @@ window.__ModuleLoader__.load({
       const listRef = useRef(null)
       const detailScrollRef = useRef(null)
       const searchRef = useRef(null)
-      const queryRef = useRef('')
+      const askRef = useRef(null)
+      const askingRef = useRef(false)
       const rootRef = useRef(null)
       // 长连接是否活着：活着就不需要高频兜底轮询，断了退回 20 秒（老版本 Host 没
       // /events 时，行为与改动前完全一致）。
@@ -1991,10 +2086,6 @@ window.__ModuleLoader__.load({
       useEffect(() => {
         selectedRef.current = selected
       }, [selected])
-
-      useEffect(() => {
-        queryRef.current = query
-      }, [query])
 
       const pushToast = useCallback((tone, text) => {
         setToast({ tone, text, at: Date.now() })
@@ -2188,44 +2279,36 @@ window.__ModuleLoader__.load({
         if (detailScrollRef.current) detailScrollRef.current.scrollTop = 0
       }, [selected])
 
-      // a new filter/search starts from the top of the list
+      // a new filter starts from the top of the list
       useEffect(() => {
         if (listRef.current) listRef.current.scrollTop = 0
-      }, [filter, query])
+      }, [filter])
 
-      // ⌘K / "/" search, Esc — only while the panel is the visible surface
+      // ⌘K 聚焦检索框 —— 只在面板是可见表面时生效
       useEffect(() => {
         function onKeyDown(event) {
           const root = rootRef.current
           if (!root || root.offsetParent === null) return
-          const active = document.activeElement
-          const inside = root.contains(active) || active === document.body
-          if (!inside) return
-          const modifier = event.metaKey || event.ctrlKey
-          if (modifier && (event.key === 'k' || event.key === 'K')) {
-            event.preventDefault()
-            searchRef.current?.focus()
-            searchRef.current?.select?.()
-            return
-          }
-          if (event.key === '/' && active !== searchRef.current) {
-            const tag = String(active?.tagName || '').toLowerCase()
-            if (tag === 'input' || tag === 'textarea' || active?.isContentEditable) return
-            event.preventDefault()
-            searchRef.current?.focus()
-            return
-          }
-          if (event.key === 'Escape' && active === searchRef.current) {
-            if (queryRef.current) {
-              setQuery('')
-            } else {
-              searchRef.current?.blur()
-            }
-          }
+          if (!(event.metaKey || event.ctrlKey)) return
+          if (event.key !== 'k' && event.key !== 'K') return
+          event.preventDefault()
+          searchRef.current?.focus()
+          searchRef.current?.select?.()
         }
         document.addEventListener('keydown', onKeyDown)
         return () => document.removeEventListener('keydown', onKeyDown)
       }, [])
+
+      // 点下拉以外的地方收起（用 mousedown，才能在点中候选项之前判断内外）
+      useEffect(() => {
+        if (!askOpen) return
+        function onPointerDown(event) {
+          if (askRef.current?.contains(event.target)) return
+          setAskOpen(false)
+        }
+        document.addEventListener('mousedown', onPointerDown)
+        return () => document.removeEventListener('mousedown', onPointerDown)
+      }, [askOpen])
 
       const items = listData.items
       const total = listData.total || items.length
@@ -2248,20 +2331,16 @@ window.__ModuleLoader__.load({
       }, [listData, items, total])
 
       const matched = useMemo(() => {
-        const keyword = query.trim().toLowerCase()
         return items.filter((item) => {
           if (filter === 'pending' && !(isPending(item.status) || item.status === 'skipped')) return false
           if (filter === 'ready' && item.status !== 'ready') return false
           if (filter === 'failed' && item.status !== 'failed') return false
-          if (!keyword) return true
-          const haystack = `${item.title} ${item.originalTitle} ${item.oneLiner} ${item.error || ''}`.toLowerCase()
-          return haystack.includes(keyword)
+          return true
         })
-      }, [items, filter, query])
+      }, [items, filter])
 
       // 「全部」就是窗口内发现的全部记录（Host 已经按时间窗口过滤过），
-      // 不再按条数分页；筛选和搜索只是在同一批记录上收敛。
-      const searching = filter !== 'all' || Boolean(query.trim())
+      // 不再按条数分页；四个 Tab 只是在同一批记录上收敛。
       const visible = matched
       const grouped = useMemo(() => {
         const groups = []
@@ -2282,10 +2361,43 @@ window.__ModuleLoader__.load({
           setMobileDetail(false)
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-      }, [filter, query])
+      }, [filter])
 
       const selectItem = useCallback((token) => {
         setSelected(token)
+        setMobileDetail(true)
+      }, [])
+
+      /**
+       * 一句话检索：回车才发（不是边打边搜）。一次调用 3–8 秒，输入即时触发
+       * 只会排一串废请求。Host 侧对同一句话有 60 秒缓存，改一个字重回车也不亏。
+       */
+      const runAsk = useCallback(async (text) => {
+        const question = String(text ?? '').trim()
+        if (!question || askingRef.current) return
+        askingRef.current = true
+        setAsking(true)
+        setAskError('')
+        setAskHits([])
+        setAskedText(question)
+        setAskOpen(true)
+        try {
+          const result = await api('/search', { method: 'POST', body: JSON.stringify({ q: question }) })
+          if (result?.ok === false) setAskError(result.error || '检索失败')
+          else setAskHits(Array.isArray(result?.hits) ? result.hits : [])
+        } catch (searchError) {
+          setAskError(searchError?.message || '检索失败')
+        } finally {
+          askingRef.current = false
+          setAsking(false)
+        }
+      }, [])
+
+      // 选中候选：只切到那条记录，左侧列表仍按时间分组，顺序不动
+      const pickHit = useCallback((hit) => {
+        setAskOpen(false)
+        setFilter('all')
+        setSelected(hit.token)
         setMobileDetail(true)
       }, [])
 
@@ -2440,6 +2552,58 @@ window.__ModuleLoader__.load({
       // 同步中不并列旧时间，避免「同步中 · 45 秒前」这种自相矛盾的组合
       const syncBadge = !state || syncing ? '' : (state.lastError ? '上次失败' : 'tick')
 
+      // 加宽规则：聚焦、下拉展开、或已经写了超过 12 个字（长问题失焦也不塌）
+      const askWide = askFocus || askOpen || query.trim().length > 12
+
+      function renderDrops() {
+        if (asking) {
+          return h('div', { className: 'lm-drops' },
+            h('div', { className: 'lm-drop-head' },
+              h('span', null, '正在理解你的问题…'),
+              h('span', null, `${askedText.length} 字`)),
+            h('div', { className: 'lm-skel-wrap' },
+              h('div', { className: 'lm-skel', style: { width: '72%' } }),
+              h('div', { className: 'lm-skel', style: { width: '54%' } }),
+              h('div', { className: 'lm-skel', style: { width: '63%' } })))
+        }
+        if (askError) {
+          return h('div', { className: 'lm-drops' },
+            h('div', { className: 'lm-drop-empty' },
+              h('b', null, '这次没问出去。'),
+              h('span', { className: 'lm-drop-hint' }, askError)))
+        }
+        if (askHits.length) {
+          return h('div', { className: 'lm-drops' },
+            h('div', { className: 'lm-drop-head' },
+              h('span', null, `${askHits.length} 条最相关`),
+              h('span', null, '点击查看')),
+            askHits.map((hit, index) => h('div', {
+              key: hit.token,
+              className: 'lm-hit',
+              role: 'button',
+              tabIndex: 0,
+              onClick: () => pickHit(hit),
+              onKeyDown: (event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault()
+                  pickHit(hit)
+                }
+              },
+            },
+            h('span', { className: 'lm-hit-rank' }, String(index + 1)),
+            h('div', { className: 'lm-hit-main' },
+              h('div', { className: 'lm-hit-title' }, hit.title),
+              hit.why ? h('div', { className: 'lm-hit-why' }, hit.why) : null,
+              h('div', { className: 'lm-hit-meta' },
+                [hit.when, hit.minutes ? `${hit.minutes} 分钟` : ''].filter(Boolean).join(' · '))))))
+        }
+        return h('div', { className: 'lm-drops' },
+          h('div', { className: 'lm-drop-empty' },
+            h('b', null, '没找到相关的妙记。'),
+            h('span', { className: 'lm-drop-hint' }, '换个说法试试：带上「哪天」或者「谁在里面」。'),
+            h('span', { className: 'lm-drop-hint' }, '也可以打开某条记录，用「发送到对话」细问。')))
+      }
+
       const showEmpty = !items.length && !error
       const selectedItem = detail?.item || items.find((item) => item.token === selected)
       const narrowDetail = mobileDetail && Boolean(selectedItem)
@@ -2455,29 +2619,61 @@ window.__ModuleLoader__.load({
           h('div', { className: 'lm-brand-text' },
             h('span', { className: 'lm-brand-title' }, '妙记工作台'))),
         h('div', { className: 'lm-head-spacer' }),
-        h('label', { className: 'lm-search' },
-          h('span', { className: 'lm-search-icon' }, h(IconSearch, { size: 14 })),
-          h('input', {
-            ref: searchRef,
-            type: 'search',
-            value: query,
-            placeholder: '搜索标题或结论',
-            'aria-label': '搜索妙记',
-            title: '搜索全部已发现的妙记（标题、结论、错误）',
-            onChange: (event) => setQuery(event.target.value),
-          }),
-          query
-            ? h('button', {
-              type: 'button',
-              className: 'lm-search-clear',
-              title: '清除搜索',
-              'aria-label': '清除搜索',
-              onClick: () => {
-                setQuery('')
-                searchRef.current?.focus()
-              },
-            }, h(IconX, { size: 12 }))
-            : h('span', { className: 'lm-kbd' }, '⌘K')),
+        h('div', {
+          ref: askRef,
+          className: cx('lm-search', askWide && 'is-wide'),
+        },
+        h('span', {
+          className: 'lm-search-icon',
+          // 原来这里是 <label>，点图标能聚焦；换成 div 后补一次，别丢掉这个手感
+          onMouseDown: (event) => {
+            event.preventDefault()
+            searchRef.current?.focus()
+          },
+        }, h(IconSearch, { size: 14 })),
+        h('input', {
+          ref: searchRef,
+          type: 'search',
+          value: query,
+          maxLength: 300,
+          autoComplete: 'off',
+          spellCheck: false,
+          placeholder: askWide ? '比如「上周讲定价那场会，谁反对过折扣」' : '用一句话找妙记',
+          'aria-label': '用一句话找妙记',
+          title: '用一句话描述你记得的那场会（超过 300 字截断）',
+          onFocus: () => setAskFocus(true),
+          onBlur: () => setAskFocus(false),
+          onChange: (event) => {
+            const next = event.target.value
+            setQuery(next)
+            if (!next.trim()) {
+              setAskOpen(false)
+              setAskHits([])
+              setAskError('')
+            }
+          },
+          onKeyDown: (event) => {
+            if (event.key === 'Enter') {
+              event.preventDefault()
+              runAsk(query)
+              return
+            }
+            if (event.key === 'Escape') {
+              event.preventDefault()
+              setQuery('')
+              setAskOpen(false)
+              setAskHits([])
+              setAskError('')
+              return
+            }
+          },
+        }),
+        query.length > 120
+          ? h('span', { className: 'lm-search-count' }, `${query.length}/300`)
+          : null,
+        askOpen
+          ? renderDrops()
+          : h('span', { className: 'lm-kbd' }, '⌘K')),
         state?.index?.url ? h('a', {
           className: 'lm-btn lm-btn-link',
           href: state.index.url,
@@ -2616,22 +2812,18 @@ window.__ModuleLoader__.load({
                       ],
                     })
                     : h(EmptyState, {
-                      title: query ? '没有匹配的妙记' : '这个分组还是空的',
-                      desc: query ? `没有找到包含「${query}」的标题或结论。` : '切换到「全部」看看，或者等下一段录音。',
-                      icon: h(IconSearch, { size: 21 }),
+                      title: '这个分组还是空的',
+                      desc: '切换到「全部」看看，或者等下一段录音。',
                       actions: h('button', {
                         type: 'button',
                         className: 'lm-btn lm-btn-primary',
-                        onClick: () => {
-                          setQuery('')
-                          setFilter('all')
-                        },
-                      }, '清除筛选'),
+                        onClick: () => setFilter('all'),
+                      }, '查看全部'),
                     })),
-          // 只在搜索/筛选时给个计数；索引入口统一放在顶部（同一个文档，别放两处）
-          query || filter !== 'all'
+          // 只在筛选时给个计数；索引入口统一放在顶部（同一个文档，别放两处）
+          filter !== 'all'
             ? h('div', { className: 'lm-list-foot' },
-              h('span', null, query ? `匹配 ${matched.length} 篇` : `筛选 ${matched.length} 篇`))
+              h('span', null, `筛选 ${matched.length} 篇`))
             : null),
         h(Detail, {
           detail,
