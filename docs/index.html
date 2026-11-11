@@ -1,0 +1,657 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>妙记工作台 · 把飞书妙记变成能看的会议纪要</title>
+<meta name="description" content="DSH Web 插件。自动发现飞书妙记，生成标题与完整纪要，写进飞书文档，并用一张索引表跨设备记住每一场会。">
+<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0d0f12" media="(prefers-color-scheme: dark)">
+<link rel="canonical" href="https://xianglifei.github.io/dsh-lark-minutes-dashboard/">
+<link rel="icon" href="assets/icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="style.css">
+
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="妙记工作台">
+<meta property="og:title" content="妙记工作台 · 手机录完，剩下的交给它">
+<meta property="og:description" content="自动发现飞书妙记，生成标题与完整纪要、落成飞书文档，再登记进一张跨设备共享的索引表。">
+<meta property="og:image" content="https://xianglifei.github.io/dsh-lark-minutes-dashboard/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:url" content="https://xianglifei.github.io/dsh-lark-minutes-dashboard/">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="妙记工作台 · 手机录完，剩下的交给它">
+<meta name="twitter:description" content="自动发现飞书妙记，生成标题与完整纪要、落成飞书文档，再登记进一张跨设备共享的索引表。">
+<meta name="twitter:image" content="https://xianglifei.github.io/dsh-lark-minutes-dashboard/og.png">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "妙记工作台",
+  "alternateName": "dsh-lark-minutes-dashboard",
+  "applicationCategory": "BusinessApplication",
+  "operatingSystem": "Web",
+  "softwareVersion": "0.6.0",
+  "description": "DSH Web 插件。自动发现飞书妙记，生成标题与完整纪要，写进飞书文档，并用一张索引表跨设备记住每一场会。",
+  "url": "https://xianglifei.github.io/dsh-lark-minutes-dashboard/",
+  "codeRepository": "https://github.com/xianglifei/dsh-lark-minutes-dashboard",
+  "author": { "@type": "Person", "name": "xianglifei" }
+}
+</script>
+
+<script>
+  // 在首屏绘制前定好主题，避免闪白。
+  (function () {
+    try {
+      var saved = localStorage.getItem('lm-theme');
+      var dark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      document.documentElement.dataset.theme = saved === 'dark' || saved === 'light' ? saved : (dark ? 'dark' : 'light');
+      document.documentElement.classList.add('js');
+      // 如果 app.js 没能跑起来，2.5 秒后把内容全部放出来，避免整页停在 opacity:0。
+      setTimeout(function () {
+        if (!window.__lmReady) document.documentElement.classList.remove('js');
+      }, 2500);
+    } catch (e) {}
+  })();
+</script>
+</head>
+<body>
+
+<a class="skip-link" href="#main">跳到正文</a>
+
+<svg class="sprite" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg">
+  <symbol id="i-wave" viewBox="0 0 24 24">
+    <path d="M4 9.5v5M8 6.5v11M12 3.5v17M16 6.5v11M20 9.5v5" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"/>
+  </symbol>
+  <symbol id="i-arrow-right" viewBox="0 0 24 24">
+    <path d="M5 12h13M13 6.5l5.5 5.5L13 17.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+  </symbol>
+  <symbol id="i-arrow-down" viewBox="0 0 24 24">
+    <path d="M12 5v13M6.5 12.5L12 18l5.5-5.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+  </symbol>
+  <symbol id="i-check" viewBox="0 0 24 24">
+    <path d="M5 12.5l4.5 4.5L19 7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+  </symbol>
+  <symbol id="i-github" viewBox="0 0 24 24">
+    <path d="M12 2.6a9.4 9.4 0 0 0-3 18.3c.5.1.6-.2.6-.5v-1.7c-2.6.6-3.1-1.1-3.1-1.1-.4-1.1-1-1.4-1-1.4-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.8.8.1-.6.3-1.1.6-1.3-2.1-.2-4.3-1-4.3-4.6 0-1 .4-1.9 1-2.5-.1-.2-.4-1.2.1-2.5 0 0 .8-.3 2.6 1a9 9 0 0 1 4.7 0c1.8-1.3 2.6-1 2.6-1 .5 1.3.2 2.3.1 2.5.6.6 1 1.5 1 2.5 0 3.6-2.2 4.4-4.3 4.6.3.3.6.9.6 1.9v2.8c0 .3.2.6.6.5A9.4 9.4 0 0 0 12 2.6Z" fill="currentColor"/>
+  </symbol>
+  <symbol id="i-sun" viewBox="0 0 24 24">
+    <circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="1.6"/>
+    <path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M18.7 5.3l-1.4 1.4M6.7 17.3l-1.4 1.4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+  </symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24">
+    <path d="M20 14.2A8.2 8.2 0 0 1 9.8 4a8.3 8.3 0 1 0 10.2 10.2Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+  </symbol>
+  <symbol id="i-copy" viewBox="0 0 24 24">
+    <rect x="8.5" y="8.5" width="11" height="11" rx="2.2" fill="none" stroke="currentColor" stroke-width="1.6"/>
+    <path d="M15.5 5.5h-9a2 2 0 0 0-2 2v9" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+  </symbol>
+  <symbol id="i-radar" viewBox="0 0 24 24">
+    <circle cx="12" cy="12" r="8.2" fill="none" stroke="currentColor" stroke-width="1.5"/>
+    <circle cx="12" cy="12" r="1.5" fill="currentColor"/>
+    <path d="M12 12l5.4-5.4M12 3.8a8.2 8.2 0 0 1 8.2 8.2" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+  </symbol>
+  <symbol id="i-spark" viewBox="0 0 24 24">
+    <path d="M12 3.5l1.7 4.8 4.8 1.7-4.8 1.7L12 16.5l-1.7-4.8L5.5 10l4.8-1.7L12 3.5Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+    <path d="M18.5 15.5l.8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8.8-2.2Z" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/>
+  </symbol>
+  <symbol id="i-doc" viewBox="0 0 24 24">
+    <path d="M6.5 3.5h7l4 4v13h-11v-17Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+    <path d="M13.5 3.5v4h4M9.3 12h5.4M9.3 15.5h5.4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+  </symbol>
+  <symbol id="i-table" viewBox="0 0 24 24">
+    <rect x="3.8" y="4.8" width="16.4" height="14.4" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"/>
+    <path d="M3.8 9.3h16.4M9.5 9.3v9.9M15 9.3v9.9" fill="none" stroke="currentColor" stroke-width="1.5"/>
+  </symbol>
+  <symbol id="i-search" viewBox="0 0 24 24">
+    <circle cx="10.8" cy="10.8" r="6.3" fill="none" stroke="currentColor" stroke-width="1.6"/>
+    <path d="M15.5 15.5l4.2 4.2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+  </symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24">
+    <circle cx="12" cy="12" r="8.3" fill="none" stroke="currentColor" stroke-width="1.6"/>
+    <path d="M12 7.2V12l3.2 2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+  </symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24">
+    <circle cx="12" cy="12" r="8.3" fill="none" stroke="currentColor" stroke-width="1.6"/>
+    <path d="M12 7.6v5.2" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+    <circle cx="12" cy="16.4" r="1" fill="currentColor"/>
+  </symbol>
+  <symbol id="i-skip" viewBox="0 0 24 24">
+    <circle cx="12" cy="12" r="8.3" fill="none" stroke="currentColor" stroke-width="1.6"/>
+    <path d="M8.2 12h7.6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+  </symbol>
+  <symbol id="i-book" viewBox="0 0 24 24">
+    <path d="M4.5 5.5a2 2 0 0 1 2-2H12v16H6.5a2 2 0 0 0-2 2v-16Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+    <path d="M19.5 5.5a2 2 0 0 0-2-2H12v16h5.5a2 2 0 0 1 2 2v-16Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+  </symbol>
+  <symbol id="i-refresh" viewBox="0 0 24 24">
+    <path d="M19.2 12a7.2 7.2 0 1 1-2.4-5.4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+    <path d="M19.6 4.6v4.2h-4.2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+  </symbol>
+  <symbol id="i-split" viewBox="0 0 24 24">
+    <path d="M4.5 5.5h4l4 6.5 4 6.5h3M4.5 18.5h4l2.2-3.6M19.5 5.5h-3l-2.2 3.6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+  </symbol>
+  <symbol id="i-merge" viewBox="0 0 24 24">
+    <path d="M5 5.5h3l4 6.5 4 6.5h3M5 18.5h3l2.2-3.6M19 5.5h-3l-2.2 3.6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+  </symbol>
+  <symbol id="i-lock" viewBox="0 0 24 24">
+    <rect x="5" y="10" width="14" height="10" rx="2.2" fill="none" stroke="currentColor" stroke-width="1.5"/>
+    <path d="M8.5 10V7.5a3.5 3.5 0 0 1 7 0V10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+  </symbol>
+  <symbol id="i-external" viewBox="0 0 24 24">
+    <path d="M13.5 4.5H19.5V10.5M19.5 4.5l-7.2 7.2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M18 14.5v4a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 4 18.5v-11A1.5 1.5 0 0 1 5.5 6h4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+  </symbol>
+  <symbol id="i-key" viewBox="0 0 24 24">
+    <circle cx="8" cy="12" r="3.8" fill="none" stroke="currentColor" stroke-width="1.6"/>
+    <path d="M11.8 12h8.2M17 12v3M20 12v2.4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+  </symbol>
+  <symbol id="i-chevron" viewBox="0 0 24 24">
+    <path d="M8.5 10l3.5 3.5L15.5 10" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+  </symbol>
+</svg>
+
+<header class="nav" id="nav">
+  <div class="wrap nav-inner">
+    <a class="brand" href="#top" aria-label="妙记工作台首页">
+      <span class="brand-mark"><svg class="icon" aria-hidden="true"><use href="#i-wave"/></svg></span>
+      <span class="brand-name">妙记工作台</span>
+      <span class="brand-meta">LARK MINUTES</span>
+    </a>
+    <nav class="nav-links" aria-label="页面导航">
+      <a href="#what">它做什么</a>
+      <a href="#auto">自动整理</a>
+      <a href="#search">检索</a>
+      <a href="#design">界面</a>
+      <a href="#install">安装</a>
+    </nav>
+    <div class="nav-actions">
+      <a class="icon-btn" href="https://github.com/xianglifei/dsh-lark-minutes-dashboard" target="_blank" rel="noreferrer" aria-label="GitHub 仓库">
+        <svg class="icon" aria-hidden="true"><use href="#i-github"/></svg>
+      </a>
+      <button class="icon-btn theme-toggle" type="button" id="themeToggle" aria-label="切换深色模式" aria-pressed="false">
+        <svg class="icon icon-sun" aria-hidden="true"><use href="#i-sun"/></svg>
+        <svg class="icon icon-moon" aria-hidden="true"><use href="#i-moon"/></svg>
+      </button>
+    </div>
+  </div>
+</header>
+
+<main id="main">
+  <section class="hero" id="top">
+    <div class="wrap hero-inner">
+      <div class="eyebrow reveal">
+        <span class="eyebrow-dot" aria-hidden="true"></span>
+        <span>DSH WEB PLUGIN</span>
+        <span class="slash" aria-hidden="true">/</span>
+        <span class="mono">v0.6.0</span>
+      </div>
+      <h1 class="reveal">手机录完，<br>剩下的交给它。</h1>
+      <p class="hero-lead reveal">妙记工作台在后台发现你的飞书妙记，自动写出标题和完整纪要、落成飞书文档，<span class="nowrap">再把每一场会</span><span class="nowrap">登记进一张跨设备共享的索引表。</span><span class="nowrap">你不用点按钮，也不用守着。</span></p>
+      <div class="hero-actions reveal">
+        <a class="btn btn-primary" href="#how">看它怎么工作<svg class="icon" aria-hidden="true"><use href="#i-arrow-down"/></svg></a>
+        <a class="btn btn-ghost" href="https://github.com/xianglifei/dsh-lark-minutes-dashboard" target="_blank" rel="noreferrer">
+          <svg class="icon" aria-hidden="true"><use href="#i-github"/></svg>GitHub
+        </a>
+      </div>
+      <div class="hero-proof reveal">
+        <span><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg>自动整理</span>
+        <span><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg>一句话检索</span>
+        <span><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg>跨设备共享</span>
+        <span><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg>长会不截断</span>
+      </div>
+    </div>
+
+    <figure class="wrap hero-figure reveal">
+      <div class="shot">
+        <a class="shot-link" href="assets/workbench-light.png" target="_blank" rel="noreferrer" aria-label="打开完整界面截图">
+          <img src="assets/workbench-light.png" width="1440" height="980" alt="妙记工作台界面：点阵画布上浮着左侧收件箱卡与右侧阅读器卡，右侧展示一场复盘的纪要、待办与逐字稿。" fetchpriority="high">
+        </a>
+      </div>
+      <figcaption class="figure-cap">
+        <span class="cap-check"><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg>实际界面 · 浅色模式</span>
+        <span class="cap-meta mono">1440 × 980 · 点击看大图</span>
+      </figcaption>
+    </figure>
+  </section>
+
+  <section class="section" id="what">
+    <div class="wrap">
+      <header class="section-head reveal">
+        <div class="section-kicker"><span class="mono">01</span><span class="rule" aria-hidden="true"></span>它解决什么</div>
+        <h2>会议记录，<br>不该是第二份工作。</h2>
+        <p class="section-lead">录音、转写、起标题、写纪要、建文档、记链接——每一步都不难，连起来就没人愿意做。妙记工作台把这条链子整条接走。</p>
+      </header>
+
+      <div class="compare">
+        <div class="compare-card compare-before reveal">
+          <div class="compare-head"><span class="mono">BEFORE</span><span class="compare-title">以前</span></div>
+          <ul class="plain-list">
+            <li>手机录完，妙记标题是「新录音 12」</li>
+            <li>想找上周那场会，只能凭记忆翻列表</li>
+            <li>纪要要另外找人写，文档要另外建</li>
+            <li>换一台电脑，像从没整理过</li>
+          </ul>
+        </div>
+        <div class="compare-card compare-after reveal">
+          <div class="compare-head"><span class="mono">AFTER</span><span class="compare-title">现在</span></div>
+          <ul class="check-list">
+            <li><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg>够格的妙记自己跑完，标题、纪要、文档一次到位</li>
+            <li><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg>用一句话描述你记得的那场会</li>
+            <li><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg>索引表自动维护「妙记 ↔ 纪要」</li>
+            <li><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg>换机器后，云端账本照样认得</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="how">
+    <div class="wrap">
+      <header class="section-head reveal">
+        <div class="section-kicker"><span class="mono">02</span><span class="rule" aria-hidden="true"></span>一场会的四步</div>
+        <h2>从一段录音，<br>到一份能转发的文档。</h2>
+        <p class="section-lead">发现、生成、写回、记账。每一步都在后台发生，面板只负责让你看见结果。</p>
+      </header>
+
+      <div class="steps reveal">
+        <article class="step">
+          <div class="step-top"><span class="step-num mono">01</span><span class="step-icon"><svg class="icon" aria-hidden="true"><use href="#i-radar"/></svg></span></div>
+          <h3>发现</h3>
+          <p>每 60 秒查一次飞书妙记。新录音进本地收件箱，只认你自己的。</p>
+        </article>
+        <article class="step">
+          <div class="step-top"><span class="step-num mono">02</span><span class="step-icon"><svg class="icon" aria-hidden="true"><use href="#i-spark"/></svg></span></div>
+          <h3>生成</h3>
+          <p>逐字稿交给模型，产出标题、一句话结论、分节纪要和待办。长会分段总结再合并。</p>
+        </article>
+        <article class="step">
+          <div class="step-top"><span class="step-num mono">03</span><span class="step-icon"><svg class="icon" aria-hidden="true"><use href="#i-doc"/></svg></span></div>
+          <h3>写回</h3>
+          <p>建一篇「标题 · 妙记纪要」飞书文档，把标题写回妙记。你改过的名字不会被覆盖。</p>
+        </article>
+        <article class="step">
+          <div class="step-top"><span class="step-num mono">04</span><span class="step-icon"><svg class="icon" aria-hidden="true"><use href="#i-table"/></svg></span></div>
+          <h3>记账</h3>
+          <p>把「时间 / 标题 / 时长 / 妙记 / 纪要」写进索引表。它同时是跨设备账本。</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="auto">
+    <div class="wrap split">
+      <div class="split-copy">
+        <header class="section-head reveal">
+          <div class="section-kicker"><span class="mono">03</span><span class="rule" aria-hidden="true"></span>自动整理</div>
+          <h2>不点按钮，<br>也有分寸。</h2>
+          <p class="section-lead">发现即入队，但不是无脑跑。四道闸门替你判断这一条该不该自动处理；不够格的留在「待整理」，想跑再点。</p>
+        </header>
+
+        <div class="gates reveal">
+          <div class="gate">
+            <div class="gate-name"><code>autoProcess</code><span class="gate-default mono">true</span></div>
+            <p>总开关。关掉就退回纯手动。</p>
+          </div>
+          <div class="gate">
+            <div class="gate-name"><code>autoProcessMinMinutes</code><span class="gate-default mono">3 min</span></div>
+            <p>挡住误触、语音备忘和几秒的测试录音。</p>
+          </div>
+          <div class="gate">
+            <div class="gate-name"><code>autoProcessSettleMinutes</code><span class="gate-default mono">5 min</span></div>
+            <p>给转写一点沉淀时间，避免拿到残稿。</p>
+          </div>
+          <div class="gate">
+            <div class="gate-name"><code>autoProcessSkipKeywords</code><span class="gate-default mono">[]</span></div>
+            <p>命中「面试」「1:1」这类词就不自动跑。</p>
+          </div>
+        </div>
+
+        <p class="fineprint reveal">只自动处理启用这个版本之后新出现的妙记。升级当天不会把窗口里积压的历史一次跑完。</p>
+      </div>
+
+      <div class="split-visual reveal">
+        <div class="mock mock-queue" aria-label="自动整理队列示意">
+          <div class="mock-head">
+            <div>
+              <div class="mock-eyebrow mono">QUEUE</div>
+              <div class="mock-title">自动整理队列</div>
+            </div>
+            <span class="mock-live"><span class="pulse" aria-hidden="true"></span>串行 · 1 条</span>
+          </div>
+          <div class="q-list">
+            <div class="q-row">
+              <span class="q-status ok"><svg class="icon" aria-hidden="true"><use href="#i-doc"/></svg></span>
+              <div class="q-main"><div class="q-title">Q4 增长复盘会</div><div class="q-time mono">今天 18:27 · 45 分钟</div></div>
+              <span class="chip chip-ok">已整理</span>
+            </div>
+            <div class="q-row">
+              <span class="q-status warn"><svg class="icon" aria-hidden="true"><use href="#i-clock"/></svg></span>
+              <div class="q-main"><div class="q-title">API 网关灰度评审</div><div class="q-time mono">今天 15:27 · 32 分钟</div></div>
+              <span class="chip chip-warn">待整理</span>
+            </div>
+            <div class="q-row">
+              <span class="q-status err"><svg class="icon" aria-hidden="true"><use href="#i-alert"/></svg></span>
+              <div class="q-main"><div class="q-title">招聘复盘 · 后端岗</div><div class="q-time mono">11月7日 20:27 · 51 分钟</div></div>
+              <span class="chip chip-err">失败</span>
+            </div>
+            <div class="q-row">
+              <span class="q-status skip"><svg class="icon" aria-hidden="true"><use href="#i-skip"/></svg></span>
+              <div class="q-main"><div class="q-title">存储层选型讨论</div><div class="q-time mono">昨天 18:27 · 4 分钟</div></div>
+              <span class="chip chip-skip">已跳过</span>
+            </div>
+          </div>
+          <div class="mock-foot">
+            <span class="cap-check"><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg>自动跑完不弹通知</span>
+            <span class="mono">看「失败」计数即可</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="search">
+    <div class="wrap split split-reverse">
+      <div class="split-copy">
+        <header class="section-head reveal">
+          <div class="section-kicker"><span class="mono">04</span><span class="rule" aria-hidden="true"></span>一句话检索</div>
+          <h2>不用记得关键词，<br>记得那场会就行。</h2>
+          <p class="section-lead">标题和结论都是模型写的，你第一次见到那个措辞是在看列表之后。所以这里不要求你「回忆」，只要求你「描述」。</p>
+        </header>
+
+        <ul class="points reveal">
+          <li><strong>只给候选，不给答案。</strong>答案容易被当成事实，候选永远可核验。</li>
+          <li><strong>不改列表顺序。</strong>搜索结果只是下拉里的提名，左栏仍按时间分组。</li>
+          <li><strong>回车才发。</strong>一次 3–8 秒；同一句话 60 秒内命中缓存。</li>
+          <li><strong>模型编的 id 会被丢掉。</strong>点不开的结果，宁可不给你。</li>
+        </ul>
+
+        <blockquote class="pull reveal">关键词搜索要求「回忆」，<br>而这份内容只支持「识别」。</blockquote>
+      </div>
+
+      <div class="split-visual reveal">
+        <div class="mock mock-search" aria-label="一句话检索示意">
+          <div class="search-field">
+            <svg class="icon" aria-hidden="true"><use href="#i-search"/></svg>
+            <span class="search-text">上周讲定价那场会，谁反对过折扣</span>
+            <kbd class="mono">⌘K</kbd>
+          </div>
+          <div class="search-panel">
+            <div class="search-panel-head"><span>2 条最相关</span><span class="mono">点击查看</span></div>
+            <div class="result">
+              <span class="result-rank mono">1</span>
+              <div class="result-body">
+                <div class="result-title">Q4 定价方案与折扣底线</div>
+                <div class="result-why">提到了定价三档与折扣底线</div>
+                <div class="result-meta mono">今天 10:20 · 48 分钟</div>
+              </div>
+            </div>
+            <div class="result">
+              <span class="result-rank mono">2</span>
+              <div class="result-body">
+                <div class="result-title">渠道合作初步沟通</div>
+                <div class="result-why">谈到独家条款与试点结算</div>
+                <div class="result-meta mono">11月9日 16:20 · 41 分钟</div>
+              </div>
+            </div>
+            <div class="search-panel-foot"><span class="mono">ENTER TO SEARCH</span><span>不改动左侧列表顺序</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="devices">
+    <div class="wrap split">
+      <div class="split-copy">
+        <header class="section-head reveal">
+          <div class="section-kicker"><span class="mono">05</span><span class="rule" aria-hidden="true"></span>跨设备</div>
+          <h2>两台电脑，<br>一本账。</h2>
+          <p class="section-lead">索引文档不只是目录，它是多台机器共用的共享状态。不做主从，哪台在线哪台跑；竞争只发生在建文档之前的一次收敛检查。</p>
+        </header>
+
+        <ul class="points reveal">
+          <li><strong>每台机器都能跑。</strong>主设备不在手边，也不会卡住。</li>
+          <li><strong>写前收敛。</strong>发现别的设备已经写过，就采纳它的文档，本地内容留作草稿。</li>
+          <li><strong>重复索引自动收成「历史副本」。</strong>不删你的文档，台面上只留一份正本。</li>
+          <li><strong>换机 / 重装 / 清库</strong>，也能从云端把「已整理」认回来。</li>
+        </ul>
+
+        <div class="stat-row reveal">
+          <div class="stat"><div class="stat-num mono">5 min</div><div class="stat-label">后台读一次索引</div></div>
+          <div class="stat"><div class="stat-num mono">60 s</div><div class="stat-label">面板打开时降到</div></div>
+          <div class="stat"><div class="stat-num mono">1 次</div><div class="stat-label">写前收敛检查</div></div>
+        </div>
+      </div>
+
+      <div class="split-visual reveal">
+        <div class="mock mock-ledger" aria-label="索引文档示意">
+          <div class="ledger-head">
+            <div class="ledger-icon"><svg class="icon" aria-hidden="true"><use href="#i-table"/></svg></div>
+            <div>
+              <div class="ledger-title">妙记工作台 · 索引</div>
+              <div class="ledger-sub mono">飞书文档 · 正本</div>
+            </div>
+            <span class="chip chip-ok">已同步</span>
+          </div>
+          <div class="ledger-scroll">
+            <table class="ledger">
+              <thead><tr><th>时间</th><th>标题</th><th>时长</th><th>妙记</th><th>纪要</th></tr></thead>
+              <tbody>
+                <tr><td class="mono">11-11 18:27</td><td>Q4 增长复盘会</td><td class="mono">45m</td><td class="ledger-link">打开</td><td class="ledger-link">打开</td></tr>
+                <tr><td class="mono">11-11 15:27</td><td>API 网关灰度评审</td><td class="mono">32m</td><td class="ledger-link">打开</td><td class="ledger-link">打开</td></tr>
+                <tr><td class="mono">11-10 18:27</td><td>存储层选型讨论</td><td class="mono">58m</td><td class="ledger-link">打开</td><td class="ledger-link">打开</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="ledger-foot">
+            <svg class="icon" aria-hidden="true"><use href="#i-lock"/></svg>
+            <span>索引标识 妙记工作台索引账本</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="long">
+    <div class="wrap">
+      <header class="section-head reveal">
+        <div class="section-kicker"><span class="mono">06</span><span class="rule" aria-hidden="true"></span>长会议</div>
+        <h2>三个小时的会，<br>也写到最后一句话。</h2>
+        <p class="section-lead">逐字稿超过 2 万字就分段总结，再合并。正文由代码按时间段拼接，长度不受单次输出上限约束——不会悄悄只写前半场。</p>
+      </header>
+
+      <div class="long-card reveal">
+        <div class="long-head">
+          <span class="mono">TRANSCRIPT · 03:12:48</span>
+          <span class="long-note">按时间戳与说话人切块</span>
+        </div>
+        <div class="chunks" aria-hidden="true">
+          <div class="chunk" style="--h:52%"><span class="mono">00:00</span></div>
+          <div class="chunk" style="--h:68%"><span class="mono">00:24</span></div>
+          <div class="chunk" style="--h:44%"><span class="mono">00:48</span></div>
+          <div class="chunk" style="--h:76%"><span class="mono">01:12</span></div>
+          <div class="chunk" style="--h:58%"><span class="mono">01:36</span></div>
+          <div class="chunk" style="--h:82%"><span class="mono">02:00</span></div>
+          <div class="chunk" style="--h:61%"><span class="mono">02:24</span></div>
+          <div class="chunk" style="--h:70%"><span class="mono">02:48</span></div>
+          <div class="chunk chunk-last" style="--h:90%"><span class="mono">03:12</span></div>
+        </div>
+        <div class="merge-row" aria-hidden="true">
+          <span class="merge-line"></span>
+          <span class="merge-badge"><svg class="icon" aria-hidden="true"><use href="#i-arrow-down"/></svg>合并要点</span>
+          <span class="merge-line"></span>
+        </div>
+        <div class="long-out">
+          <div class="long-out-main">
+            <div class="long-out-title">总纪要</div>
+            <div class="long-out-sub">总述 · 跨段待办 · 按时间段排列的分节纪要</div>
+          </div>
+          <div class="long-out-meta">
+            <span class="mono">9 节</span>
+            <span class="mono">12 条待办</span>
+            <span class="cap-check"><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg>覆盖到最后议题</span>
+          </div>
+        </div>
+        <p class="long-foot">单块失败只会在那一节写「本节生成失败：原因」，其余照常，不会让整条记录失败。</p>
+      </div>
+
+      <div class="stat-row stat-row-wide reveal">
+        <div class="stat"><div class="stat-num mono">20,000</div><div class="stat-label">字，分段阈值</div></div>
+        <div class="stat"><div class="stat-num mono">8–10</div><div class="stat-label">段，3 小时会议</div></div>
+        <div class="stat"><div class="stat-num mono">1</div><div class="stat-label">次合并调用</div></div>
+        <div class="stat"><div class="stat-num mono">0</div><div class="stat-label">截断提示</div></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="design">
+    <div class="wrap split split-visual-first">
+      <div class="split-visual reveal">
+        <figure class="design-shot">
+          <div class="shot shadow-soft">
+            <img src="assets/workbench-dark.png" width="1200" height="900" alt="妙记工作台深色模式：深色点阵画布与两张浮起的深色卡片，纪要与待办清晰可读。" loading="lazy">
+          </div>
+          <figcaption class="figure-cap">
+            <span class="cap-check"><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg>深色模式 · 同一套 DSH token</span>
+            <span class="cap-meta mono">THE WORKBENCH</span>
+          </figcaption>
+        </figure>
+      </div>
+
+      <div class="split-copy">
+        <header class="section-head reveal">
+          <div class="section-kicker"><span class="mono">07</span><span class="rule" aria-hidden="true"></span>界面</div>
+          <h2>它是一张画布，<br>不是一页表单。</h2>
+          <p class="section-lead">工作台是一张 22px 点阵画布，上面浮着两张卡：左边收件箱，右边阅读器。浅色和深色都走 DSH token，跟宿主界面同一套皮肤。</p>
+        </header>
+
+        <div class="principles reveal">
+          <div class="principle"><span class="principle-num mono">01</span><div><h3>点阵画布</h3><p>22px 间距的圆点，两张卡之间留 22px 画布，不连成一张。</p></div></div>
+          <div class="principle"><span class="principle-num mono">02</span><div><h3>浮起双卡</h3><p>14px 小圆角、1px 发丝边、三层柔和阴影；深色下靠表面亮度差保持浮起。</p></div></div>
+          <div class="principle"><span class="principle-num mono">03</span><div><h3>token 优先</h3><p>颜色、阴影、字体全部取 DSH 变量，宿主换肤时不用改一行样式。</p></div></div>
+          <div class="principle"><span class="principle-num mono">04</span><div><h3>两套字号</h3><p>正文 13–17px，控件 10.5–13px；元信息保证 4.5:1 对比度。</p></div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="install">
+    <div class="wrap">
+      <header class="section-head reveal">
+        <div class="section-kicker"><span class="mono">08</span><span class="rule" aria-hidden="true"></span>安装</div>
+        <h2>三分钟，<br>接上你的妙记。</h2>
+        <p class="section-lead">需要 DSH Web、lark-cli ≥ 1.0.99，以及已登录的飞书 user 身份。插件不经过第三方服务器，数据只经过飞书 API 和你当前的模型。</p>
+      </header>
+
+      <div class="install-grid">
+        <div class="install-steps reveal">
+          <div class="install-step">
+            <div class="install-num mono">1</div>
+            <div class="install-body">
+              <h3>检查 lark-cli</h3>
+              <p>没登录就先跑一次 <code>lark-cli auth login</code>。</p>
+              <div class="code" data-code="lark-cli auth status">
+                <code>lark-cli auth status</code>
+                <button class="copy-btn" type="button" data-copy="lark-cli auth status" aria-label="复制命令"><svg class="icon" aria-hidden="true"><use href="#i-copy"/></svg><span>复制</span></button>
+              </div>
+            </div>
+          </div>
+          <div class="install-step">
+            <div class="install-num mono">2</div>
+            <div class="install-body">
+              <h3>添加插件</h3>
+              <p>把路径换成你 clone 下来的目录。</p>
+              <div class="code code-stack">
+                <code><span class="code-line">dsh --profile desktop plugin add \</span><span class="code-line">  link:/path/to/dsh-lark-minutes-dashboard</span></code>
+                <button class="copy-btn" type="button" data-copy="dsh --profile desktop plugin add link:/path/to/dsh-lark-minutes-dashboard" aria-label="复制命令"><svg class="icon" aria-hidden="true"><use href="#i-copy"/></svg><span>复制</span></button>
+              </div>
+            </div>
+          </div>
+          <div class="install-step">
+            <div class="install-num mono">3</div>
+            <div class="install-body">
+              <h3>刷新 DSH</h3>
+              <p>左侧栏底部出现声波图标，点开就是工作台。第一次启动会先建索引文档。</p>
+            </div>
+          </div>
+        </div>
+
+        <aside class="config-card reveal">
+          <div class="config-head">
+            <span class="mono">cordis.patch.yml</span>
+            <span class="chip">默认值</span>
+          </div>
+          <pre class="config-code"><code><span class="c"># 自动整理</span>
+<span class="k">autoProcess</span>: <span class="v">true</span>
+<span class="k">autoProcessMinMinutes</span>: <span class="v">3</span>
+<span class="k">autoProcessSettleMinutes</span>: <span class="v">5</span>
+<span class="k">autoProcessSkipKeywords</span>: <span class="v">[]</span>
+
+<span class="c"># 多设备</span>
+<span class="k">foregroundRefreshSec</span>: <span class="v">60</span>
+
+<span class="c"># 分段总结</span>
+<span class="k">chunkThresholdChars</span>: <span class="v">20000</span>
+<span class="k">chunkTargetChars</span>: <span class="v">10000</span></code></pre>
+          <div class="config-foot">装完在插件的配置里改，不用改代码。</div>
+        </aside>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="limits">
+    <div class="wrap">
+      <header class="section-head reveal">
+        <div class="section-kicker"><span class="mono">09</span><span class="rule" aria-hidden="true"></span>边界</div>
+        <h2>它不假装<br>什么都能做。</h2>
+        <p class="section-lead">下面这些是已知限制，写在 README 里，也写在这里。一个工具的可信度，取决于它敢不敢说自己做不到什么。</p>
+      </header>
+
+      <div class="limits reveal">
+        <article class="limit"><span class="limit-tag mono">LIMIT 01</span><h3>只发现「我拥有的」妙记</h3><p>别人拥有、你只是参与的会，不会进列表。</p></article>
+        <article class="limit"><span class="limit-tag mono">LIMIT 02</span><h3>默认只看最近 7 天</h3><p>窗口外的旧记录不再展示，但仍留在本地库，调大窗口就会回来。</p></article>
+        <article class="limit"><span class="limit-tag mono">LIMIT 03</span><h3>事件通道不可用</h3><p>飞书侧的事件被 lark-cli 预检拦截，所以发现走 60 秒轮询，不是实时。</p></article>
+        <article class="limit"><span class="limit-tag mono">LIMIT 04</span><h3>多设备可能多花一次调用</h3><p>换来的是「永远不会因为主设备不在手边而卡住」。</p></article>
+        <article class="limit"><span class="limit-tag mono">LIMIT 05</span><h3>失败不自动重试</h3><p>权限、模型、写入问题重试只会连着烧钱；转写没就绪是唯一例外。</p></article>
+        <article class="limit"><span class="limit-tag mono">LIMIT 06</span><h3>别给索引文档改名</h3><p>标题是发现的主要依据；改名后新设备可能找不到并新建一份。</p></article>
+      </div>
+    </div>
+  </section>
+
+  <section class="cta" id="start">
+    <div class="wrap cta-inner reveal">
+      <div class="eyebrow"><span class="eyebrow-dot" aria-hidden="true"></span><span class="mono">GET STARTED</span></div>
+      <h2>下一场会，<br>不用再收拾。</h2>
+      <p>装上它，然后去开会。</p>
+      <div class="cta-actions">
+        <a class="btn btn-primary" href="#install">安装到 DSH<svg class="icon" aria-hidden="true"><use href="#i-arrow-right"/></svg></a>
+        <a class="btn btn-ghost" href="https://github.com/xianglifei/dsh-lark-minutes-dashboard" target="_blank" rel="noreferrer"><svg class="icon" aria-hidden="true"><use href="#i-github"/></svg>查看源码</a>
+      </div>
+      <div class="cta-note"><span class="cap-check"><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg>本地运行</span><span class="mono">lark-cli ≥ 1.0.99</span><span class="mono">DSH WEB</span></div>
+    </div>
+  </section>
+</main>
+
+<footer class="footer">
+  <div class="wrap footer-inner">
+    <div class="footer-brand">
+      <span class="brand-mark"><svg class="icon" aria-hidden="true"><use href="#i-wave"/></svg></span>
+      <div>
+        <div class="footer-title">妙记工作台</div>
+        <div class="footer-sub">把飞书妙记变成能看的会议纪要。</div>
+      </div>
+    </div>
+    <nav class="footer-links" aria-label="页脚导航">
+      <a href="https://github.com/xianglifei/dsh-lark-minutes-dashboard#readme" target="_blank" rel="noreferrer">README</a>
+      <a href="https://github.com/xianglifei/dsh-lark-minutes-dashboard/blob/main/CHANGELOG.md" target="_blank" rel="noreferrer">更新日志</a>
+      <a href="https://github.com/xianglifei/dsh-lark-minutes-dashboard" target="_blank" rel="noreferrer">GitHub</a>
+      <a href="https://www.feishu.cn/product/minutes" target="_blank" rel="noreferrer">飞书妙记<svg class="icon icon-xs" aria-hidden="true"><use href="#i-external"/></svg></a>
+    </nav>
+    <div class="footer-meta mono">© 2026 xianglifei · DSH WEB PLUGIN</div>
+  </div>
+</footer>
+
+<script src="app.js"></script>
+</body>
+</html>
