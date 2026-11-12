@@ -551,7 +551,7 @@
       <header class="section-head reveal">
         <div class="section-kicker"><span class="mono">09</span><span class="rule" aria-hidden="true"></span>安装</div>
         <h2>三分钟，<br>接上你的妙记。</h2>
-        <p class="section-lead">需要 DSH Web、lark-cli ≥ 1.0.99，以及已登录的飞书 user 身份。插件不经过第三方服务器，数据只经过飞书 API 和你当前的模型。</p>
+        <p class="section-lead">已发布到 npm，一条命令装；也可以在 DSH 侧栏「插件 → 添加插件」里输入包名。需要 DSH Web、lark-cli ≥ 1.0.99，以及已登录的飞书 user 身份。插件不经过第三方服务器，数据只经过飞书 API 和你当前的模型。</p>
       </header>
 
       <div class="install-grid">
@@ -570,12 +570,13 @@
           <div class="install-step">
             <div class="install-num mono">2</div>
             <div class="install-body">
-              <h3>添加插件</h3>
-              <p>把路径换成你 clone 下来的目录。</p>
-              <div class="code code-stack">
-                <code><span class="code-line">dsh --profile desktop plugin add \</span><span class="code-line">  link:/path/to/dsh-lark-minutes-dashboard</span></code>
-                <button class="copy-btn" type="button" data-copy="dsh --profile desktop plugin add link:/path/to/dsh-lark-minutes-dashboard" aria-label="复制命令"><svg class="icon" aria-hidden="true"><use href="#i-copy"/></svg><span>复制</span></button>
+              <h3>从 npm 安装</h3>
+              <p>包名 <code>dsh-lark-minutes-dashboard</code>，装完刷新页面。</p>
+              <div class="code" data-code="dsh --profile desktop plugin add dsh-lark-minutes-dashboard">
+                <code>dsh --profile desktop plugin add dsh-lark-minutes-dashboard</code>
+                <button class="copy-btn" type="button" data-copy="dsh --profile desktop plugin add dsh-lark-minutes-dashboard" aria-label="复制命令"><svg class="icon" aria-hidden="true"><use href="#i-copy"/></svg><span>复制</span></button>
               </div>
+              <p>想改代码再用本地目录：把命令末尾换成 <code>link:/path/to/dsh-lark-minutes-dashboard</code>。</p>
             </div>
           </div>
           <div class="install-step">
@@ -638,7 +639,7 @@
         <a class="btn btn-primary" href="#install">安装到 DSH<svg class="icon" aria-hidden="true"><use href="#i-arrow-right"/></svg></a>
         <a class="btn btn-ghost" href="https://github.com/xianglifei/dsh-lark-minutes-dashboard" target="_blank" rel="noreferrer"><svg class="icon" aria-hidden="true"><use href="#i-github"/></svg>查看源码</a>
       </div>
-      <div class="cta-note"><span class="cap-check"><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg>本地运行</span><span class="mono">lark-cli ≥ 1.0.99</span><span class="mono">DSH WEB</span></div>
+      <div class="cta-note"><span class="cap-check"><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg>本地运行</span><span class="mono">NPM 0.6.0</span><span class="mono">lark-cli ≥ 1.0.99</span><span class="mono">DSH WEB</span></div>
     </div>
   </section>
 </main>
@@ -655,6 +656,7 @@
     <nav class="footer-links" aria-label="页脚导航">
       <a href="https://github.com/xianglifei/dsh-lark-minutes-dashboard#readme" target="_blank" rel="noreferrer">README</a>
       <a href="https://github.com/xianglifei/dsh-lark-minutes-dashboard/blob/main/CHANGELOG.md" target="_blank" rel="noreferrer">更新日志</a>
+      <a href="https://www.npmjs.com/package/dsh-lark-minutes-dashboard" target="_blank" rel="noreferrer">npm<svg class="icon icon-xs" aria-hidden="true"><use href="#i-external"/></svg></a>
       <a href="https://github.com/xianglifei/dsh-lark-minutes-dashboard" target="_blank" rel="noreferrer">GitHub</a>
       <a href="https://www.feishu.cn/product/minutes" target="_blank" rel="noreferrer">飞书妙记<svg class="icon icon-xs" aria-hidden="true"><use href="#i-external"/></svg></a>
     </nav>
