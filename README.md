@@ -1,5 +1,7 @@
 # 妙记工作台（dsh-lark-minutes-dashboard）
 
+> 线上介绍页：<https://xianglifei.github.io/dsh-lark-minutes-dashboard/>
+
 ![妙记工作台 0.5.0 界面：点阵画布上的左侧列表卡与右侧详情卡](assets/ui-0.5.0.png)
 
 DSH Web 插件。把手机录的飞书妙记变成「能看懂标题 + 完整会议纪要 + 飞书文档 + 索引表」。版本变更见 [CHANGELOG.md](CHANGELOG.md)。
