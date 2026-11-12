@@ -44,5 +44,5 @@ python3 -m http.server 8765
 - 版本号写在 `index.html` 的 hero eyebrow（`v0.6.0`）、页脚和 JSON-LD 里，发版时一起改。
 - 安装命令、默认配置和「已知限制」都来自仓库 README；改默认值后记得同步这两处。
 - 截图更新时替换 `docs/assets/` 下的两张图，保持原始比例即可，卡片会自动缩放。
-- 页面底色是 `#f6f7f8`；点阵只出现在首屏产品图的 `::before` 光环里。想彻底去掉，删掉 `.hero-figure::before` 即可。
+- 页面底色是 `#ffffff`；点阵只出现在首屏产品图的 `::before` 光环里。想彻底去掉，删掉 `.hero-figure::before` 即可。
 - 不需要 Jekyll，`.nojekyll` 已就位。
