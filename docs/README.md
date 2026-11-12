@@ -33,7 +33,7 @@ python3 -m http.server 8765
 | 文件 | 作用 |
 |---|---|
 | `index.html` | 页面结构、中文文案、内联 SVG 图标 |
-| `style.css` | 与插件同一套视觉：22px 点阵、14px 圆角、DSH token 近似值、深浅色 |
+| `style.css` | 与插件同一套视觉：近白底、14px 圆角浮卡、只在首屏产品图周围保留 22px 点阵点缀、深浅色 |
 | `app.js` | 主题切换、吸顶导航、入场动画、复制命令 |
 | `assets/workbench-light.png` | 浅色界面截图（来自 `assets/ui-0.5.0.png`） |
 | `assets/workbench-dark.png` | 深色界面截图（本地设计记录） |
@@ -44,4 +44,5 @@ python3 -m http.server 8765
 - 版本号写在 `index.html` 的 hero eyebrow（`v0.6.0`）、页脚和 JSON-LD 里，发版时一起改。
 - 安装命令、默认配置和「已知限制」都来自仓库 README；改默认值后记得同步这两处。
 - 截图更新时替换 `docs/assets/` 下的两张图，保持原始比例即可，卡片会自动缩放。
+- 页面底色是 `#f6f7f8`；点阵只出现在首屏产品图的 `::before` 光环里。想彻底去掉，删掉 `.hero-figure::before` 即可。
 - 不需要 Jekyll，`.nojekyll` 已就位。

@@ -23,7 +23,7 @@
     if (persist) {
       try { localStorage.setItem('lm-theme', next); } catch (e) {}
     }
-    var color = next === 'dark' ? '#0d0f12' : '#ffffff';
+    var color = next === 'dark' ? '#0b0d10' : '#f6f7f8';
     var metas = document.querySelectorAll('meta[name="theme-color"]');
     for (var i = 0; i < metas.length; i++) {
       metas[i].setAttribute('content', color);

@@ -6,9 +6,9 @@
 :root {
   color-scheme: light;
 
-  --bg: #ffffff;
+  --bg: #f6f7f8;
   --surface: #ffffff;
-  --surface-2: #f6f7f8;
+  --surface-2: #f2f4f6;
   --border: rgba(15, 17, 21, .10);
   --border-soft: rgba(15, 17, 21, .055);
   --text: #0f1115;
@@ -49,7 +49,7 @@
 [data-theme="dark"] {
   color-scheme: dark;
 
-  --bg: #0d0f12;
+  --bg: #0b0d10;
   --surface: #16191e;
   --surface-2: #1b1f25;
   --border: rgba(255, 255, 255, .12);
@@ -97,9 +97,6 @@ body {
   margin: 0;
   min-height: 100%;
   background-color: var(--bg);
-  background-image: radial-gradient(circle, var(--dot) 1px, transparent 1.15px);
-  background-size: 22px 22px;
-  background-position: 11px 11px;
   color: var(--text);
   font-family: var(--sans);
   font-size: 14px;
@@ -272,7 +269,20 @@ code, pre, kbd { font-family: var(--mono); }
 .hero {
   position: relative;
   padding: 84px 0 0;
+  isolation: isolate;
 }
+.hero::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 760px;
+  background: radial-gradient(62% 68% at 50% 0%,
+    color-mix(in srgb, var(--text) 3.4%, transparent),
+    transparent 72%);
+  pointer-events: none;
+  z-index: -1;
+}
+.hero > .wrap { position: relative; }
 .hero-inner {
   max-width: 920px;
   text-align: center;
@@ -382,8 +392,28 @@ code, pre, kbd { font-family: var(--mono); }
 .hero-proof .icon { width: 13px; height: 13px; color: var(--ok); }
 
 .hero-figure {
+  position: relative;
+  isolation: isolate;
   margin: 58px auto 0;
   max-width: 1120px;
+}
+.hero-figure::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: -20px;
+  bottom: 48px;
+  border-radius: 32px;
+  background-image: radial-gradient(circle,
+    color-mix(in srgb, var(--text) 8%, transparent) 1px,
+    transparent 1.15px);
+  background-size: 22px 22px;
+  background-position: 11px 11px;
+  -webkit-mask-image: radial-gradient(ellipse 76% 78% at 50% 46%, #000 32%, transparent 78%);
+  mask-image: radial-gradient(ellipse 76% 78% at 50% 46%, #000 32%, transparent 78%);
+  z-index: -1;
+  pointer-events: none;
 }
 .shot {
   border: 1px solid var(--border);
