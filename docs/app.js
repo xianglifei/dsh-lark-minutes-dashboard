@@ -44,13 +44,22 @@
   }
 
   if (sections.length && 'IntersectionObserver' in window) {
+    var visibleSections = [];
     var activeObserver = new IntersectionObserver(function (entries) {
       entries.forEach(function (entry) {
-        if (!entry.isIntersecting) return;
-        for (var s = 0; s < sections.length; s++) {
-          sections[s].link.classList.toggle('is-active', sections[s].el === entry.target);
-        }
+        var index = visibleSections.indexOf(entry.target);
+        if (entry.isIntersecting && index === -1) visibleSections.push(entry.target);
+        else if (!entry.isIntersecting && index !== -1) visibleSections.splice(index, 1);
       });
+
+      // 没有任何章节落在中间带时，清空高亮；否则取文档顺序里最靠后的那一节。
+      var activeEl = null;
+      for (var s = 0; s < sections.length; s++) {
+        if (visibleSections.indexOf(sections[s].el) !== -1) activeEl = sections[s].el;
+      }
+      for (var t = 0; t < sections.length; t++) {
+        sections[t].link.classList.toggle('is-active', sections[t].el === activeEl);
+      }
     }, { rootMargin: '-42% 0px -52% 0px', threshold: 0 });
 
     for (var s2 = 0; s2 < sections.length; s2++) activeObserver.observe(sections[s2].el);
