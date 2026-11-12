@@ -63,13 +63,25 @@ DSH Web 插件。把手机录的飞书妙记变成「能看懂标题 + 完整会
 - **字号与对比度**：正文 13–17、界面控件 10.5–13 两套尺；浅色下时间、元信息（含列表时间、tab 计数、页脚）用 text-2（≥4.5:1），caption 只做分隔点和装饰。
 - **窄屏**：面板宽度小于 700px 时退回单栏——先看列表，点一条进入详情并出现返回按钮；卡片周围仍留一圈画布。700px 以上始终是左右两张卡。
 
-## 安装（本地开发）
+## 安装
+
+方式一：DSH 侧栏 **插件 → 添加插件**，输入包名（发布到 npm 后可用）：
 
 ```sh
+dsh --profile desktop plugin add dsh-lark-minutes-dashboard
+```
+
+方式二：不发 npm，直接指向本仓库或本地目录（添加插件输入框也接受这两种写法）：
+
+```sh
+dsh --profile desktop plugin add git+https://github.com/xianglifei/dsh-lark-minutes-dashboard.git
 dsh --profile desktop plugin add link:/absolute/path/to/dsh-lark-minutes-dashboard
 ```
 
-或者在 DSH 里用插件管理器安装该目录。装完刷新页面，左侧栏出现声波图标。
+装完刷新页面，左侧栏出现声波图标。
+
+> 自带「添加插件」的输入框不是搜索框：它把输入当成 pnpm spec，用 `pnpm view` 去 registry 里解析。
+> 只有已发布到 npm 的包名（或 git / tarball / 本地绝对路径）才会被认出来，见[发布](#发布)。
 
 ## 依赖
 
@@ -137,6 +149,23 @@ POST /lark-minutes/search {q}            一句话检索（返回 1–3 条候�
 - 纪要用的是 DSH 当前默认模型的 provider/model（`agentDefaultModel`），可在设置里换模型；**推理档位默认不跟随全局设置**（`reasoningEffort` 留空 = 模型默认档），避免给批量整理套上高推理档导致又慢又贵，需要时用配置覆盖。输出上限 `maxTokens` 默认 8000（分段总结时每一块单独限 4000，合并那一次用 `maxTokens`）。逐字稿**不再截断**：超过 2 万字走分段 map-reduce，正文由代码按时间段拼接，长度不受单次输出上限约束。
 - 单实例写锁只覆盖「发现」和「启动恢复」；同一台机器开两个 DSH 时，另一个实例会跟随磁盘状态，但**手动处理**仍可能与持锁实例并发（不会重复建文档，因为文档 token 会被采纳）。
 - `GET /list` 的 `counts` 与 `GET /item` 的 `model` / `updatedAt` 是 v0.2 新增的 Host 字段；`item.adoptedAt`（纪要是别的设备做的）、`GET /item` 的 `generated.fromDoc` / `hydrateError`（正文回读自文档，以及回读失败原因）与 `state.lastWarning`（部分时间窗读取失败）是 v0.3 新增；`state.shared.documents`（本机读到的全部索引文档）、`state.shared.retired`（已合并成历史副本的 token）与 `state.shared.discoveryOk`（两条发现通道是否可用）是 v0.4 新增。旧进程里缺这些字段时界面会自动退化，不影响使用。
+
+## 发布
+
+插件要能被别人在「添加插件」里输入名字直接找到，必须发布到 npm 公共 registry。
+`package.json` 已具备发布条件（声明了 `dsh.bundle.patch`、`files` 含全部运行文件、去掉了 `private`）：
+
+```sh
+npm login
+npm publish            # 未 scope 的包默认 public；首次发布前确认版本号
+npm view dsh-lark-minutes-dashboard version   # 确认 registry 已可读
+```
+
+发布后，别人在「添加插件」里输入 `dsh-lark-minutes-dashboard` 即可解析到最新版本；
+维护期间改版本号后重新 `npm publish` 即可，用户端在插件详情里会看到可更新版本。
+
+> pnpm 的 `minimumReleaseAge` 供应链策略可能让刚发布的版本暂不可装，
+> 此时安装对话框会提示实际装到的版本，等一段时间或按提示安装精确版本即可。
 
 ## 结构
 

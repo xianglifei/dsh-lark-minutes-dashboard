@@ -1,14 +1,14 @@
 {
   "name": "dsh-lark-minutes-dashboard",
   "version": "0.6.0",
-  "private": true,
   "type": "module",
   "description": "妙记工作台：自动发现飞书妙记、生成标题与完整纪要、写入飞书文档并维护索引",
   "exports": {
     ".": "./index.js",
     "./client": "./client.js",
     "./locale/*.json": "./locale/*.json",
-    "./icon": "./icon.svg"
+    "./icon": "./icon.svg",
+    "./package.json": "./package.json"
   },
   "files": [
     "index.js",
@@ -17,6 +17,23 @@
     "locale/*.json",
     "icon.svg"
   ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/xianglifei/dsh-lark-minutes-dashboard.git"
+  },
+  "homepage": "https://xianglifei.github.io/dsh-lark-minutes-dashboard/",
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "deepseek-harness",
+    "feishu",
+    "lark",
+    "minutes",
+    "meeting-notes"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
   "dsh": {
     "bundle": {
       "patch": "./cordis.patch.yml"
