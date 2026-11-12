@@ -1,53 +1,7 @@
 (function () {
   'use strict';
 
-  var root = document.documentElement;
   var reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-
-  /* ------------------------------------------------------------- 主题 */
-
-  var themeToggle = document.getElementById('themeToggle');
-  var storedTheme = null;
-  try { storedTheme = localStorage.getItem('lm-theme'); } catch (e) {}
-
-  function syncThemeButton() {
-    if (!themeToggle) return;
-    var dark = root.dataset.theme === 'dark';
-    themeToggle.setAttribute('aria-pressed', dark ? 'true' : 'false');
-    themeToggle.setAttribute('aria-label', dark ? '切换到浅色模式' : '切换到深色模式');
-  }
-
-  function setTheme(next, persist) {
-    root.dataset.theme = next;
-    syncThemeButton();
-    if (persist) {
-      try { localStorage.setItem('lm-theme', next); } catch (e) {}
-    }
-    var color = next === 'dark' ? '#0d0f12' : '#ffffff';
-    var metas = document.querySelectorAll('meta[name="theme-color"]');
-    for (var i = 0; i < metas.length; i++) {
-      metas[i].setAttribute('content', color);
-      metas[i].removeAttribute('media');
-    }
-  }
-
-  syncThemeButton();
-
-  if (themeToggle) {
-    themeToggle.addEventListener('click', function () {
-      setTheme(root.dataset.theme === 'dark' ? 'light' : 'dark', true);
-    });
-  }
-
-  // 用户没手动选过时，跟随系统切换。
-  var scheme = window.matchMedia('(prefers-color-scheme: dark)');
-  var onScheme = function (event) {
-    var saved = null;
-    try { saved = localStorage.getItem('lm-theme'); } catch (e) {}
-    if (!saved) setTheme(event.matches ? 'dark' : 'light', false);
-  };
-  if (scheme.addEventListener) scheme.addEventListener('change', onScheme);
-  else if (scheme.addListener) scheme.addListener(onScheme);
 
   /* ------------------------------------------------------------- 导航吸顶 */
 
